@@ -1,0 +1,11 @@
+/users
+    /<username>
+
+/boards
+    /<name>
+
+/auth
+    /login
+    /register
+    /refresh
+    /logout

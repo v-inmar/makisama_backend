@@ -1,0 +1,17 @@
+example env
+DATABASE_HOST=myhost
+DATABASE_PORT=myport
+DATABASE_SCHEMA=mydb
+DATABASE_USERNAME=myuser
+DATABASE_PASSWORD=mypassword
+
+# JWT Secrets (use strong, random strings for production!)
+JWT_ACCESS_SECRET=your_super_secret_access_key_here_at_least_32_chars
+JWT_REFRESH_SECRET=your_super_secret_refresh_key_here_at_least_32_chars
+
+# Token Expiration Times (in minutes for access, days for refresh)
+ACCESS_TOKEN_EXPIRATION_MINUTES=15
+REFRESH_TOKEN_EXPIRATION_DAYS=7
+
+
+TODO: Working on models

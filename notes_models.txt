@@ -1,0 +1,69 @@
+user
+    id (bigint)
+    datetime_created
+    email (unique, 5<->128, lowercased only)
+    password
+    datetime_deactivated (datetime)
+    datetime_deleted (datetime)
+
+    username_id (bigint)
+    user_auth_token_id (bigint)
+    firstname_id (name id) (bigint)
+    lastname_id (name id) (bigint)
+
+
+
+username
+    id (bigint)
+    datetime_created
+    value (unique, 8<->64, lowercased only)
+
+user_auth_token : this is the value that will be encoded with the jwt
+    id (bigint)
+    datetime_created
+    value (unique, 64)
+
+name
+    id (bigint)
+    datetime_created
+    value (unique, 5<->64)
+
+-------------------------------------------------------
+
+group
+    id (bigint)
+    datetime_created
+    
+    group_name_id (unique)
+    group_description_id (nullable)
+
+group_name: cannot be changed
+    id (bigint)
+    datetime_created
+    value (unique, 5<->255)
+
+group_description
+    id (bigint)
+    datetime_created
+    value (text)
+
+-------------------------------------------------------
+
+group_member
+    id (bigint)
+    datetime_created
+    
+    user_id (bigint)
+    group_id (bigint)
+
+group_creator
+    id (bigint)
+    datetime_created
+
+    group_member_id (bigint)
+
+group_admin
+    id (bigint)
+    datetime_created
+
+    group_member_id (bigint)
