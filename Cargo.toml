@@ -18,3 +18,5 @@ bcrypt = "0.17"
 dotenvy = "0.15"
 chrono = { version = "0.4.41", features = ["serde"] }
 tokio = { version = "1.46", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1.17.0", features = ["v4"] }
+jsonwebtoken = "9"

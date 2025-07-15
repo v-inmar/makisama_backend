@@ -1,13 +1,17 @@
+
+
+
+
 user
     id (bigint)
     datetime_created
-    email (unique, 5<->128, lowercased only)
     password
     datetime_deactivated (datetime)
     datetime_deleted (datetime)
 
     username_id (bigint)
     user_auth_token_id (bigint)
+    user_email_id (bigint)
     firstname_id (name id) (bigint)
     lastname_id (name id) (bigint)
 
@@ -23,10 +27,21 @@ user_auth_token : this is the value that will be encoded with the jwt
     datetime_created
     value (unique, 64)
 
+user_email
+    id
+    datetime_created
+    value (unique, 5<->128, lowercased only)
+
+------------------------------------------------------
+
+profile
+    id
+    datetime_created
+
 name
     id (bigint)
     datetime_created
-    value (unique, 5<->64)
+    value (unique, 5<->64, capitalized)
 
 -------------------------------------------------------
 
