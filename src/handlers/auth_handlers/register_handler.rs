@@ -1,12 +1,12 @@
-use actix_web::cookie::CookieBuilder;
-use actix_web::cookie::time::Duration;
-use actix_web::{HttpRequest, HttpResponse, Responder, post, web};
+use actix_web::http::StatusCode;
+use actix_web::{HttpRequest, Responder, post, web};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
 use crate::models::auth_identity_model::AuthIdentity;
 use crate::models::user_model::User;
 use crate::services::user_service::register_new_user;
+use crate::utils::json_response_utils::{JsonErrorResponse, JsonJwtResponse};
 use crate::utils::jwt_utils;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -29,10 +29,19 @@ pub async fn register(
     match User::get_user_by_email(&pool, &json_data.email).await {
         Err(e) => {
             log::error!("Error while checking for email. {}", e);
-            return HttpResponse::InternalServerError().body("Server error, try again later");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error. Try again later.",
+            );
         }
         Ok(Some(_)) => {
-            return HttpResponse::Conflict().body("Email address already in use");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::CONFLICT,
+                &String::from("Email address already in use"),
+            );
+            // return HttpResponse::Conflict().body("Email address already in use");
         }
         Ok(None) => (),
     }
@@ -41,24 +50,42 @@ pub async fn register(
     match User::get_user_by_username(&pool, &json_data.username).await {
         Err(e) => {
             log::error!("Error while checking for username. {}", e);
-            return HttpResponse::InternalServerError().body("Server error, try again later");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error. Try again later.",
+            );
         }
         Ok(Some(_)) => {
-            return HttpResponse::Conflict().body("Username already in use");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::CONFLICT,
+                &String::from("Username already in use"),
+            );
+            // return HttpResponse::Conflict().body("Username already in use");
         }
         Ok(None) => (),
     }
 
     // Check password and repeat matched
     if json_data.password != json_data.repeat {
-        return HttpResponse::BadRequest().body("Password did not match");
+        return JsonErrorResponse::make_response(
+            &req,
+            &StatusCode::BAD_REQUEST,
+            &String::from("Password did not match"),
+        );
+        // return HttpResponse::BadRequest().body("Password did not match");
     }
 
     // register new user
     let user = match register_new_user(&pool, &json_data).await {
         Err(e) => {
             log::error!("Error when trying to register new user. {}", e);
-            return HttpResponse::InternalServerError().body("Server error, try again later");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error. Try again later.",
+            );
         }
         Ok(user) => user,
     };
@@ -73,14 +100,22 @@ pub async fn register(
 
             // user has been created so not really internal server error response anymore
             // try a better response
-            return HttpResponse::InternalServerError().body("Server error, try again later");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error. Try again later.",
+            );
         }
         Ok(Some(aio)) => aio,
         Ok(None) => {
+            // this should never happen unless something wrong with db, connection or register
             log::error!("Empty row auth identity for newly created user.");
-            // user has been created so not really internal server error response anymore
-            // try a better response
-            return HttpResponse::InternalServerError().body("Server error, try again later");
+
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error. Try again later.",
+            );
         }
     };
 
@@ -92,7 +127,11 @@ pub async fn register(
                 "Unable to generate access token for newly created user. {}",
                 e
             );
-            return HttpResponse::InternalServerError().body("Server error, try again later");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error. Try again later.",
+            );
         }
     };
 
@@ -103,18 +142,13 @@ pub async fn register(
                 "Unable to generate refresh token for newly created user. {}",
                 e
             );
-            return HttpResponse::InternalServerError().body("Server error, try again later");
+            return JsonErrorResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error. Try again later.",
+            );
         }
     };
 
-    let refresh_cookie = CookieBuilder::new("refresh_token", refresh_token)
-        .http_only(true)
-        .secure(false) // true on prod
-        .same_site(actix_web::cookie::SameSite::Strict)
-        .max_age(Duration::days(7))
-        .finish();
-
-    HttpResponse::Created()
-        .cookie(refresh_cookie)
-        .body(access_token)
+    JsonJwtResponse::make_response(&req, &StatusCode::CREATED, &access_token, &refresh_token)
 }

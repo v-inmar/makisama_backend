@@ -1,9 +1,12 @@
 use actix_web::{
-    App, HttpResponse, HttpServer, Responder, error::InternalError, get, middleware::Logger, web,
+    App, HttpResponse, HttpServer, Responder, error::InternalError, get, http::StatusCode,
+    middleware::Logger, web,
 };
 use dotenvy::dotenv;
 
 use std::env;
+
+use crate::utils::json_response_utils::JsonErrorResponse;
 
 mod handlers;
 mod models;
@@ -40,18 +43,20 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .app_data(web::Data::new(dbpool.pool.clone()))
             .app_data(web::FormConfig::default().error_handler(|err, req| {
-                InternalError::from_response(
-                    err,
-                    HttpResponse::BadRequest().body("bad request form"),
-                )
-                .into()
+                let resp = JsonErrorResponse::make_response(
+                    &req,
+                    &StatusCode::BAD_REQUEST,
+                    &err.to_string().clone(),
+                );
+                InternalError::from_response(err, resp).into()
             }))
             .app_data(web::JsonConfig::default().error_handler(|err, req| {
-                InternalError::from_response(
-                    err,
-                    HttpResponse::BadRequest().body("bad request json"),
-                )
-                .into()
+                let resp = JsonErrorResponse::make_response(
+                    &req,
+                    &StatusCode::BAD_REQUEST,
+                    &err.to_string().clone(),
+                );
+                InternalError::from_response(err, resp).into()
             }))
             .service(
                 web::scope("/api").service(health).service(
