@@ -3,7 +3,7 @@ use serde::Serialize;
 use sqlx::prelude::FromRow;
 
 #[derive(Debug, Serialize, FromRow)]
-pub struct BlacklistToken {
+pub struct BlacklistedToken {
     pub id: i64,
     pub value: String,
     pub datetime_ttl: DateTime<Utc>,

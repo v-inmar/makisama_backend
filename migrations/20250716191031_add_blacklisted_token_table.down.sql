@@ -1,2 +1,2 @@
 -- Add down migration script here
-DROP TABLE blacklist_token;
+DROP TABLE blacklisted_token;

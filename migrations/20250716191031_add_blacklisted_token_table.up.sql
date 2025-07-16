@@ -1,5 +1,5 @@
 -- Add up migration script here
-CREATE TABLE blacklist_token (
+CREATE TABLE blacklisted_token (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     value TEXT NOT NULL,
     datetime_ttl TIMESTAMP NOT NULL,
