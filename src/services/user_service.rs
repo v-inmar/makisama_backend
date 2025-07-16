@@ -1,4 +1,3 @@
-use bcrypt::{DEFAULT_COST, hash};
 use sqlx::{MySql, Pool};
 use uuid::Uuid;
 
