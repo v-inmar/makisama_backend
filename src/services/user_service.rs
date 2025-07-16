@@ -8,6 +8,7 @@ use crate::{
         auth_identity_model::AuthIdentity, firstname_model::Firstname, lastname_model::Lastname,
         user_model::User,
     },
+    utils::bcrypt_utils::make_hash,
 };
 
 pub async fn register_new_user(
@@ -51,7 +52,7 @@ pub async fn register_new_user(
     };
 
     // user
-    let hashed_password = hash(data.password.clone(), DEFAULT_COST)?;
+    let hashed_password = make_hash(&data.password)?;
     let new_user = User::new(
         &mut tx,
         &data.username,
