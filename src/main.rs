@@ -1,6 +1,9 @@
 use actix_web::{
-    App, HttpResponse, HttpServer, Responder, error::InternalError, get, http::StatusCode,
-    middleware::Logger, web,
+    App, HttpServer,
+    error::InternalError,
+    http::StatusCode,
+    middleware::Logger,
+    web::{self},
 };
 use dotenvy::dotenv;
 
@@ -13,11 +16,6 @@ mod models;
 mod repositories;
 mod services;
 mod utils;
-
-#[get("/health")]
-async fn health() -> impl Responder {
-    HttpResponse::Ok().body("API running")
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -59,11 +57,17 @@ async fn main() -> std::io::Result<()> {
                 InternalError::from_response(err, resp).into()
             }))
             .service(
-                web::scope("/api").service(health).service(
-                    web::scope("/auth")
-                        .service(handlers::auth_handlers::login_handler::login)
-                        .service(handlers::auth_handlers::register_handler::register),
-                ),
+                web::scope("/api")
+                    .service(
+                        web::scope("/auth")
+                            .service(handlers::auth_handlers::login_handler::login)
+                            .service(handlers::auth_handlers::register_handler::register)
+                            .service(handlers::auth_handlers::logout_handler::logout),
+                    )
+                    .service(
+                        web::scope("/users")
+                            .service(handlers::user_handlers::user_handler::get_user),
+                    ),
             )
     })
     .bind(("0.0.0.0", 5000))?

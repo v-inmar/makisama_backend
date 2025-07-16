@@ -1,7 +1,9 @@
 use std::env;
 
 use chrono::{DateTime, Duration, Utc};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{
+    Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
+};
 use serde::{Deserialize, Serialize};
 
 pub enum TokenType {
@@ -46,6 +48,19 @@ fn _generate_jwt(
     )?;
 
     Ok(token)
+}
+
+fn _decode_jwt(token: &str, secret: &str) -> Result<TokenData<Claims>, Box<dyn std::error::Error>> {
+    let mut validation = Validation::new(Algorithm::HS512);
+    validation.validate_exp = true;
+
+    let token_data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &validation,
+    )?;
+
+    Ok(token_data)
 }
 
 pub fn generate_access_token(
@@ -124,4 +139,26 @@ pub fn generate_refresh_token(
     )?;
 
     Ok(token)
+}
+
+pub fn decode_access_token(token: &str) -> Result<TokenData<Claims>, Box<dyn std::error::Error>> {
+    let secret = env::var("JWT_ACCESS_SECRET").map_err(|e| {
+        log::error!("{}", e);
+        Box::new(e)
+    })?;
+
+    let token_data = _decode_jwt(token, &secret)?;
+
+    Ok(token_data)
+}
+
+pub fn decode_refresh_token(token: &str) -> Result<TokenData<Claims>, Box<dyn std::error::Error>> {
+    let secret = env::var("JWT_REFRESH_SECRET").map_err(|e| {
+        log::error!("{}", e);
+        Box::new(e)
+    })?;
+
+    let token_data = _decode_jwt(token, &secret)?;
+
+    Ok(token_data)
 }
