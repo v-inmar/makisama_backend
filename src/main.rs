@@ -9,9 +9,10 @@ use dotenvy::dotenv;
 
 use std::env;
 
-use crate::utils::json_response_utils::JsonErrorResponse;
+use crate::utils::json_response_utils::JsonGeneralResponse;
 
 mod handlers;
+mod middlewares;
 mod models;
 mod repositories;
 mod services;
@@ -41,7 +42,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .app_data(web::Data::new(dbpool.pool.clone()))
             .app_data(web::FormConfig::default().error_handler(|err, req| {
-                let resp = JsonErrorResponse::make_response(
+                let resp = JsonGeneralResponse::make_response(
                     &req,
                     &StatusCode::BAD_REQUEST,
                     &err.to_string().clone(),
@@ -49,7 +50,7 @@ async fn main() -> std::io::Result<()> {
                 InternalError::from_response(err, resp).into()
             }))
             .app_data(web::JsonConfig::default().error_handler(|err, req| {
-                let resp = JsonErrorResponse::make_response(
+                let resp = JsonGeneralResponse::make_response(
                     &req,
                     &StatusCode::BAD_REQUEST,
                     &err.to_string().clone(),
@@ -62,10 +63,16 @@ async fn main() -> std::io::Result<()> {
                         web::scope("/auth")
                             .service(handlers::auth_handlers::login_handler::login)
                             .service(handlers::auth_handlers::register_handler::register)
-                            .service(handlers::auth_handlers::logout_handler::logout),
+                            .service(
+                                // protected /auth endpoints
+                                web::scope("")
+                                    .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                                    .service(handlers::auth_handlers::logout_handler::logout),
+                            ),
                     )
                     .service(
                         web::scope("/users")
+                            .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
                             .service(handlers::user_handlers::user_handler::get_user),
                     ),
             )

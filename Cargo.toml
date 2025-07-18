@@ -20,3 +20,4 @@ chrono = { version = "0.4.41", features = ["serde"] }
 tokio = { version = "1.46", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.17.0", features = ["v4"] }
 jsonwebtoken = "9"
+futures-util = "0.3"
