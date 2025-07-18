@@ -7,7 +7,7 @@ use crate::{
     models::{auth_identity_model::AuthIdentity, user_model::User},
     utils::{
         bcrypt_utils::is_matched,
-        json_response_utils::JsonErrorResponse,
+        json_response_utils::JsonGeneralResponse,
         json_response_utils::JsonJwtResponse,
         jwt_utils::{generate_access_token, generate_refresh_token},
     },
@@ -31,7 +31,7 @@ pub async fn login(
     let user = match User::get_user_by_email(&pool, email).await {
         Err(e) => {
             log::error!("Unable to get user by email. {}", e);
-            return JsonErrorResponse::make_response(
+            return JsonGeneralResponse::make_response(
                 &req,
                 &StatusCode::INTERNAL_SERVER_ERROR,
                 "Server error. Try again later.",
@@ -39,7 +39,7 @@ pub async fn login(
         }
         Ok(Some(user)) => user,
         Ok(None) => {
-            return JsonErrorResponse::make_response(
+            return JsonGeneralResponse::make_response(
                 &req,
                 &StatusCode::UNAUTHORIZED,
                 &String::from("Invalid email and/or password"),
@@ -51,7 +51,7 @@ pub async fn login(
     match is_matched(&password, hashed) {
         Err(e) => {
             log::error!("Unable to check password. {}", e);
-            return JsonErrorResponse::make_response(
+            return JsonGeneralResponse::make_response(
                 &req,
                 &StatusCode::INTERNAL_SERVER_ERROR,
                 "Server error. Try again later.",
@@ -59,7 +59,7 @@ pub async fn login(
         }
         Ok(matched) => {
             if !matched {
-                return JsonErrorResponse::make_response(
+                return JsonGeneralResponse::make_response(
                     &req,
                     &StatusCode::UNAUTHORIZED,
                     &String::from("Invalid email and/or password"),
@@ -68,7 +68,7 @@ pub async fn login(
                 match AuthIdentity::get_by_id(&pool, user.auth_identity_id).await {
                     Err(e) => {
                         log::error!("Unable to get auth identity. {}", e);
-                        return JsonErrorResponse::make_response(
+                        return JsonGeneralResponse::make_response(
                             &req,
                             &StatusCode::INTERNAL_SERVER_ERROR,
                             "Server error. Try again later.",
@@ -76,7 +76,7 @@ pub async fn login(
                     }
                     Ok(None) => {
                         log::error!("No auth identity for user.");
-                        return JsonErrorResponse::make_response(
+                        return JsonGeneralResponse::make_response(
                             &req,
                             &StatusCode::INTERNAL_SERVER_ERROR,
                             "Server error. Try again later.",
@@ -87,7 +87,7 @@ pub async fn login(
                             Ok(token) => token,
                             Err(e) => {
                                 log::error!("Unable to generate access token user. {}", e);
-                                return JsonErrorResponse::make_response(
+                                return JsonGeneralResponse::make_response(
                                     &req,
                                     &StatusCode::INTERNAL_SERVER_ERROR,
                                     "Server error. Try again later.",
@@ -100,7 +100,7 @@ pub async fn login(
                             Err(e) => {
                                 log::error!("Unable to generate refresh token for user. {}", e);
 
-                                return JsonErrorResponse::make_response(
+                                return JsonGeneralResponse::make_response(
                                     &req,
                                     &StatusCode::INTERNAL_SERVER_ERROR,
                                     "Server error. Try again later.",

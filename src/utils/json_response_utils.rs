@@ -16,13 +16,13 @@ pub struct StatusDetails {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct JsonErrorResponse {
+pub struct JsonGeneralResponse {
     pub request_details: RequestDetails,
     pub status_details: StatusDetails,
     pub message: String,
 }
 
-impl JsonErrorResponse {
+impl JsonGeneralResponse {
     pub fn make_response(req: &HttpRequest, code: &StatusCode, msg: &str) -> HttpResponse {
         let mut response_builder = HttpResponse::build(*code);
         response_builder.content_type("application/json");
@@ -40,7 +40,7 @@ impl JsonErrorResponse {
             method: req.method().to_string(),
         };
 
-        response_builder.json(JsonErrorResponse {
+        response_builder.json(JsonGeneralResponse {
             request_details: request_details,
             status_details: status_details,
             message: msg.to_string(),
