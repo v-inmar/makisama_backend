@@ -46,6 +46,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     // simple middleware for changing 405 response into the unified json response
+                    // This only check for response status 405, anything else, it will not change the response
                     .wrap_fn(|req, srv| {
                         srv.call(req).map(|res| {
                             match res {
@@ -95,22 +96,34 @@ async fn main() -> std::io::Result<()> {
                             ))
                             .service(web::resource("/register").route(
                                 web::post().to(handlers::auth_handlers::register_handler::register),
-                            )),
-                    ), // .service(
-                       //     web::scope("/auth")
-                       //         .service(handlers::auth_handlers::login_handler::login)
-                       //         .service(handlers::auth_handlers::register_handler::register),
-                       // )
-                       // .service(
-                       //     web::scope("/auth")
-                       //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
-                       //         .service(handlers::auth_handlers::logout_handler::logout),
-                       // )
-                       // .service(
-                       //     web::scope("/users")
-                       //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
-                       //         .service(handlers::user_handlers::user_handler::get_user),
-                       // ),
+                            ))
+                            .service(
+                                web::scope("")
+                                    .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                                    .service(
+                                        web::resource("/logout").route(
+                                            web::post().to(
+                                                handlers::auth_handlers::logout_handler::logout,
+                                            ),
+                                        ),
+                                    ),
+                            ),
+                    ),
+                // .service(
+                //     web::scope("/auth")
+                //         .service(handlers::auth_handlers::login_handler::login)
+                //         .service(handlers::auth_handlers::register_handler::register),
+                // )
+                // .service(
+                //     web::scope("/auth")
+                //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                //         .service(handlers::auth_handlers::logout_handler::logout),
+                // )
+                // .service(
+                //     web::scope("/users")
+                //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                //         .service(handlers::user_handlers::user_handler::get_user),
+                // ),
             )
             .default_service(web::route().to(|req: HttpRequest| async move {
                 JsonGeneralResponse::make_response(

@@ -1,9 +1,8 @@
-use actix_web::{HttpRequest, HttpResponse, Responder, http::StatusCode, post};
+use actix_web::{HttpRequest, HttpResponse, Responder, http::StatusCode};
 
 use crate::utils::json_response_utils::JsonGeneralResponse;
 use crate::utils::jwt_utils::decode_refresh_token;
 
-#[post("/logout")]
 pub async fn logout(req: HttpRequest) -> impl Responder {
     // Since this is a protected route, valid access token is necessary
     // already protected by middleware
