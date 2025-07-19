@@ -1,4 +1,4 @@
-use actix_web::{HttpRequest, Responder, http::StatusCode, post, web};
+use actix_web::{HttpRequest, Responder, http::StatusCode, web};
 
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
@@ -19,7 +19,6 @@ pub struct LoginForm {
     pub password: String,
 }
 
-#[post("/login")]
 pub async fn login(
     req: HttpRequest,
     pool: web::Data<MySqlPool>,

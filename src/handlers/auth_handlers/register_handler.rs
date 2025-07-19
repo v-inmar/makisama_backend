@@ -1,5 +1,5 @@
 use actix_web::http::StatusCode;
-use actix_web::{HttpRequest, Responder, post, web};
+use actix_web::{HttpRequest, Responder, web};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
@@ -19,7 +19,6 @@ pub struct RegisterRequestData {
     pub repeat: String,
 }
 
-#[post("/register")]
 pub async fn register(
     req: HttpRequest,
     pool: web::Data<MySqlPool>,

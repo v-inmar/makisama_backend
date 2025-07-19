@@ -1,11 +1,13 @@
 use actix_web::{
     App, HttpServer,
+    dev::{Service, ServiceResponse},
     error::InternalError,
     http::StatusCode,
     middleware::Logger,
     web::{self},
 };
 use dotenvy::dotenv;
+use futures_util::FutureExt;
 
 use std::env;
 
@@ -41,40 +43,72 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .app_data(web::Data::new(dbpool.pool.clone()))
-            .app_data(web::FormConfig::default().error_handler(|err, req| {
-                let resp = JsonGeneralResponse::make_response(
-                    &req,
-                    &StatusCode::BAD_REQUEST,
-                    &err.to_string().clone(),
-                );
-                InternalError::from_response(err, resp).into()
-            }))
-            .app_data(web::JsonConfig::default().error_handler(|err, req| {
-                let resp = JsonGeneralResponse::make_response(
-                    &req,
-                    &StatusCode::BAD_REQUEST,
-                    &err.to_string().clone(),
-                );
-                InternalError::from_response(err, resp).into()
-            }))
             .service(
                 web::scope("/api")
+                    // simple middleware for changing 405 response into the unified json response
+                    .wrap_fn(|req, srv| {
+                        srv.call(req).map(|res| {
+                            match res {
+                                Err(ref e) => {
+                                    log::error!("{}", e);
+                                }
+                                Ok(ref sr) => {
+                                    if sr.status().as_u16() == 405 {
+                                        let new_resp = JsonGeneralResponse::make_response(
+                                            &sr.request(),
+                                            &StatusCode::METHOD_NOT_ALLOWED,
+                                            "Method not allowed for the requested endpoint",
+                                        );
+
+                                        return Ok(ServiceResponse::new(
+                                            sr.request().clone(),
+                                            new_resp,
+                                        ));
+                                    }
+                                }
+                            }
+                            res
+                        })
+                    })
+                    .app_data(web::JsonConfig::default().error_handler(|err, req| {
+                        let resp = JsonGeneralResponse::make_response(
+                            &req,
+                            &StatusCode::BAD_REQUEST,
+                            &err.to_string().clone(),
+                        );
+                        InternalError::from_response(err, resp).into()
+                    }))
+                    .app_data(web::FormConfig::default().error_handler(|err, req| {
+                        let resp = JsonGeneralResponse::make_response(
+                            &req,
+                            &StatusCode::BAD_REQUEST,
+                            &err.to_string().clone(),
+                        );
+                        InternalError::from_response(err, resp).into()
+                    }))
                     .service(
                         web::scope("/auth")
-                            .service(handlers::auth_handlers::login_handler::login)
-                            .service(handlers::auth_handlers::register_handler::register)
-                            .service(
-                                // protected /auth endpoints
-                                web::scope("")
-                                    .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
-                                    .service(handlers::auth_handlers::logout_handler::logout),
-                            ),
-                    )
-                    .service(
-                        web::scope("/users")
-                            .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
-                            .service(handlers::user_handlers::user_handler::get_user),
-                    ),
+                            .service(web::resource("/login").route(
+                                web::post().to(handlers::auth_handlers::login_handler::login),
+                            ))
+                            .service(web::resource("/register").route(
+                                web::post().to(handlers::auth_handlers::register_handler::register),
+                            )),
+                    ), // .service(
+                       //     web::scope("/auth")
+                       //         .service(handlers::auth_handlers::login_handler::login)
+                       //         .service(handlers::auth_handlers::register_handler::register),
+                       // )
+                       // .service(
+                       //     web::scope("/auth")
+                       //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                       //         .service(handlers::auth_handlers::logout_handler::logout),
+                       // )
+                       // .service(
+                       //     web::scope("/users")
+                       //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                       //         .service(handlers::user_handlers::user_handler::get_user),
+                       // ),
             )
     })
     .bind(("0.0.0.0", 5000))?
