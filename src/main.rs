@@ -1,5 +1,5 @@
 use actix_web::{
-    App, HttpServer,
+    App, HttpRequest, HttpServer,
     dev::{Service, ServiceResponse},
     error::InternalError,
     http::StatusCode,
@@ -70,6 +70,7 @@ async fn main() -> std::io::Result<()> {
                             res
                         })
                     })
+                    // any missing json key/value pairs that are expected
                     .app_data(web::JsonConfig::default().error_handler(|err, req| {
                         let resp = JsonGeneralResponse::make_response(
                             &req,
@@ -78,6 +79,7 @@ async fn main() -> std::io::Result<()> {
                         );
                         InternalError::from_response(err, resp).into()
                     }))
+                    // any missing form key/value pairs that are expected
                     .app_data(web::FormConfig::default().error_handler(|err, req| {
                         let resp = JsonGeneralResponse::make_response(
                             &req,
@@ -110,6 +112,13 @@ async fn main() -> std::io::Result<()> {
                        //         .service(handlers::user_handlers::user_handler::get_user),
                        // ),
             )
+            .default_service(web::route().to(|req: HttpRequest| async move {
+                JsonGeneralResponse::make_response(
+                    &req,
+                    &StatusCode::NOT_FOUND,
+                    "No matching endpoint",
+                )
+            }))
     })
     .bind(("0.0.0.0", 5000))?
     .run()
