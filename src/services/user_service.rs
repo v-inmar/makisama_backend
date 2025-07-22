@@ -87,8 +87,9 @@ pub async fn create_new_auth_id(
             .into());
         }
         Some(aio) => {
-            // add ttl to the auth id object
-            let ttl = Utc::now() + Duration::days(7);
+            // add ttl to the auth id object (1 year)
+            // value cant be used for 1 year
+            let ttl = Utc::now() + Duration::days(365);
             aio.update_ttl(&mut tx, &ttl.naive_utc()).await?;
 
             // new auth id
