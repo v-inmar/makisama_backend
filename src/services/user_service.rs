@@ -1,3 +1,4 @@
+use chrono::{Duration, Utc};
 use sqlx::{MySql, Pool};
 use uuid::Uuid;
 
@@ -68,4 +69,55 @@ pub async fn register_new_user(
     Ok(new_user)
     // user
     // return user
+}
+
+pub async fn create_new_auth_id(
+    pool: &Pool<MySql>,
+    user: &User,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // begin transaction
+    let mut tx = pool.begin().await?;
+
+    match AuthIdentity::get_by_id(pool, user.auth_identity_id).await? {
+        None => {
+            return Err(format!(
+                "Unable to get Auth Identity with matching id: {}",
+                user.auth_identity_id
+            )
+            .into());
+        }
+        Some(aio) => {
+            // add ttl to the auth id object
+            let ttl = Utc::now() + Duration::days(7);
+            aio.update_ttl(&mut tx, &ttl.naive_utc()).await?;
+
+            // new auth id
+            let new_auth_identity: AuthIdentity;
+            let mut counter = 0;
+            loop {
+                if counter == 6 {
+                    let err_msg = "Error while creating AuthIdentity. Try limit has been reached";
+                    log::error!("{}", err_msg);
+                    return Err(err_msg.into());
+                }
+
+                counter += 1;
+                let auth_identity_value = Uuid::new_v4().to_string();
+                match AuthIdentity::get_by_value(pool, &auth_identity_value).await? {
+                    Some(_) => continue,
+                    None => {
+                        new_auth_identity =
+                            AuthIdentity::new(&mut tx, &auth_identity_value).await?;
+                        break;
+                    }
+                }
+            }
+            user.update_auth_identity_id(&mut tx, new_auth_identity.id)
+                .await?;
+
+            tx.commit().await?;
+
+            Ok(())
+        }
+    }
 }

@@ -109,7 +109,7 @@ where
         };
 
         // insert claimsub (user's auth identity) into request extension
-        req.extensions_mut().insert(token_data.claims.sub);
+        req.extensions_mut().insert(token_data.claims.sub.clone());
 
         Box::pin(async move {
             let res = service.call(req).await?;

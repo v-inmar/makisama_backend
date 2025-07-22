@@ -70,7 +70,7 @@ impl JsonJwtResponse {
             .secure(false) // TODO true on prod
             .same_site(actix_web::cookie::SameSite::Strict)
             .max_age(Duration::days(7))
-            .path("/api")
+            .path("/api/auth")
             .finish();
 
         response_builder.cookie(refresh_cookie);

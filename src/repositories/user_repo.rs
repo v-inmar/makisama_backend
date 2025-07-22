@@ -62,6 +62,24 @@ impl User {
         Ok(user)
     }
 
+    pub async fn update_auth_identity_id(
+        &self,
+        tx: &mut Transaction<'_, MySql>,
+        ai_id: i64,
+    ) -> Result<(), sqlx::error::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE user SET auth_identity_id = ? WHERE id = ?
+            "#,
+            ai_id,
+            self.id
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn get_user_by_email(
         pool: &Pool<MySql>,
         email: &str,
@@ -97,6 +115,25 @@ impl User {
             username.to_lowercase().to_string()
         )
         .fetch_optional(pool)
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_by_auth_identity_id(
+        pool: &Pool<MySql>,
+        ai_id: i64,
+    ) -> Result<Option<User>, sqlx::error::Error> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT id, email, password, username, datetime_deactivated, datetime_deleted, datetime_created, auth_identity_id, firstname_id, lastname_id
+            FROM user
+            WHERE
+            auth_identity_id = ?
+            "#,
+            ai_id
+        ).fetch_optional(pool)
         .await?;
 
         Ok(user)

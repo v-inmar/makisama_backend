@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use sqlx::{MySql, Pool, Transaction};
 
 use crate::models::auth_identity_model::AuthIdentity;
@@ -31,6 +32,24 @@ impl AuthIdentity {
         .await?;
 
         Ok(auth_identity)
+    }
+
+    pub async fn update_ttl(
+        &self,
+        tx: &mut Transaction<'_, MySql>,
+        ttl: &NaiveDateTime,
+    ) -> Result<(), sqlx::error::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE auth_identity SET datetime_ttl = ? WHERE id = ?
+            "#,
+            ttl,
+            self.id
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(())
     }
 
     pub async fn get_by_id(
