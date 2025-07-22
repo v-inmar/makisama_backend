@@ -74,7 +74,20 @@ where
                 );
                 return Box::pin(async move { Ok(req.into_response(resp.map_into_boxed_body())) });
             }
-            Ok(Some(at)) => at,
+            Ok(Some(auth_header_value)) => {
+                if let Some(at) = auth_header_value.strip_prefix("Bearer ") {
+                    at.to_string()
+                } else {
+                    let resp = JsonGeneralResponse::make_response(
+                        &req.request(),
+                        &StatusCode::UNAUTHORIZED,
+                        "Invalid authorization format. Expected 'Bearer <token>'",
+                    );
+                    return Box::pin(
+                        async move { Ok(req.into_response(resp.map_into_boxed_body())) },
+                    );
+                }
+            }
         };
 
         // validate token
