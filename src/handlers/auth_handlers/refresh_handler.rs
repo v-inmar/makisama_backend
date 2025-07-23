@@ -56,7 +56,7 @@ pub async fn refresh(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Respo
                     Err(e) => {
                         if e.to_string().eq_ignore_ascii_case("expiredsignature")
                             || e.to_string().eq_ignore_ascii_case("invalidsignature")
-                            || e.to_string().starts_with("base64 error")
+                            || e.to_string().starts_with("Base64")
                             || e.to_string().eq_ignore_ascii_case("invalidtoken")
                         {
                             let msg = format!("Refresh token {}", e);

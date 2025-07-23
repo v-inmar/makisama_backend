@@ -52,8 +52,6 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("{}", req.path());
-
         let service = Rc::clone(&self.service);
 
         // get the authorization header value
@@ -119,7 +117,7 @@ where
                 } else if e.to_string().eq_ignore_ascii_case("expiredsignature")
                     || e.to_string().eq_ignore_ascii_case("invalidsignature")
                     || e.to_string().eq_ignore_ascii_case("invalidtoken")
-                    || e.to_string().starts_with("base64 error")
+                    || e.to_string().starts_with("Base64")
                 {
                     let msg = format!("Access token {}", e);
                     let resp = JsonGeneralResponse::make_response(
@@ -132,6 +130,7 @@ where
                     );
                 } else {
                     log::error!("{}", e);
+                    println!("{}", e);
                     let resp = JsonGeneralResponse::make_response(
                         &req.request(),
                         &StatusCode::INTERNAL_SERVER_ERROR,
