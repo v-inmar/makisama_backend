@@ -14,7 +14,7 @@ use futures_util::future::LocalBoxFuture;
 
 use crate::utils::header_utils::RequestHeader;
 use crate::utils::json_response_utils::JsonGeneralResponse;
-use crate::utils::jwt_utils::decode_access_token;
+use crate::utils::jwt_utils::{decode_access_token, decode_access_token_no_validation_exp};
 
 pub struct AuthRequired {}
 
@@ -95,38 +95,53 @@ where
         // validate token
         let token_data = match decode_access_token(&access_token) {
             Err(e) => {
-                let err_msg = e.to_string().to_lowercase();
-                let resp_msg;
-                let status: StatusCode;
+                // check if path is refresh endpoint
+                if req.path().eq_ignore_ascii_case("/api/auth/refresh")
+                    && e.to_string().eq_ignore_ascii_case("expiredsignature")
+                {
+                    match decode_access_token_no_validation_exp(&access_token) {
+                        Err(er) => {
+                            log::error!("{}", er);
+                            let resp = JsonGeneralResponse::make_response(
+                                &req.request(),
+                                &StatusCode::INTERNAL_SERVER_ERROR,
+                                "Server error, try again later.",
+                            );
 
-                if err_msg == "expiredsignature" {
-                    // make sure that it is let through if refresh enpoint is the target and the access token had expired
-                    // since this is the point of the handler, to refresh the tokens
-                    if req.path().eq_ignore_ascii_case("/api/auth/refresh") {
-                        // NOTE: since we dont have access to claims sub, we pass in the entire access token
-                        // for checking and comparing inside the refresh handler
-                        return _let_through(service, req, &access_token);
+                            return Box::pin(async move {
+                                Ok(req.into_response(resp.map_into_boxed_body()))
+                            });
+                        }
+                        Ok(td) => {
+                            return _let_through(service, req, &td.claims.sub);
+                        }
                     }
-
-                    resp_msg = "Access token has expired".to_owned();
-                    status = StatusCode::UNAUTHORIZED;
-                } else if err_msg == "invalidsignature" {
-                    resp_msg = "Access token is contains invalid signature".to_owned();
-                    status = StatusCode::UNAUTHORIZED;
-                } else if err_msg.starts_with("base64 error") {
-                    resp_msg = "Access token is not recognized".to_owned();
-                    status = StatusCode::UNAUTHORIZED;
-                } else if err_msg == "invalidtoken" {
-                    resp_msg = "Access token is invalid".to_owned();
-                    status = StatusCode::UNAUTHORIZED;
+                } else if e.to_string().eq_ignore_ascii_case("expiredsignature")
+                    || e.to_string().eq_ignore_ascii_case("invalidsignature")
+                    || e.to_string().eq_ignore_ascii_case("invalidtoken")
+                    || e.to_string().starts_with("base64 error")
+                {
+                    let msg = format!("Access token {}", e);
+                    let resp = JsonGeneralResponse::make_response(
+                        &req.request(),
+                        &StatusCode::UNAUTHORIZED,
+                        &msg,
+                    );
+                    return Box::pin(
+                        async move { Ok(req.into_response(resp.map_into_boxed_body())) },
+                    );
                 } else {
-                    resp_msg = "Server error, try again later".to_owned();
-                    status = StatusCode::INTERNAL_SERVER_ERROR;
+                    log::error!("{}", e);
+                    let resp = JsonGeneralResponse::make_response(
+                        &req.request(),
+                        &StatusCode::INTERNAL_SERVER_ERROR,
+                        "Server error, try again later.",
+                    );
+
+                    return Box::pin(
+                        async move { Ok(req.into_response(resp.map_into_boxed_body())) },
+                    );
                 }
-
-                let resp = JsonGeneralResponse::make_response(&req.request(), &status, &resp_msg);
-
-                return Box::pin(async move { Ok(req.into_response(resp.map_into_boxed_body())) });
             }
             Ok(token_data) => token_data,
         };

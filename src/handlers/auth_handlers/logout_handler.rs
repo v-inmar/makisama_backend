@@ -54,7 +54,7 @@ pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Respon
                 // grab the access token sub (the user's auth id)
 
                 // compare
-                if *sub == token_data.claims.sub {
+                if sub.eq_ignore_ascii_case(&token_data.claims.sub) {
                     // grab the exp of the refresh token
                     if let Some(dt) = DateTime::from_timestamp(token_data.claims.exp, 0) {
                         // add 7 days to the exp time

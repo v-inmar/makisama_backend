@@ -63,6 +63,22 @@ fn _decode_jwt(token: &str, secret: &str) -> Result<TokenData<Claims>, Box<dyn s
     Ok(token_data)
 }
 
+fn _decode_jwt_no_exp_validation(
+    token: &str,
+    secret: &str,
+) -> Result<TokenData<Claims>, Box<dyn std::error::Error>> {
+    let mut validation = Validation::new(Algorithm::HS512);
+    validation.validate_exp = false;
+
+    let token_data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &validation,
+    )?;
+
+    Ok(token_data)
+}
+
 pub fn generate_access_token(
     auth_identity_value: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -148,6 +164,20 @@ pub fn decode_access_token(token: &str) -> Result<TokenData<Claims>, Box<dyn std
     })?;
 
     let token_data = _decode_jwt(token, &secret)?;
+
+    Ok(token_data)
+}
+
+// only useful for getting the claims even when token had expired
+pub fn decode_access_token_no_validation_exp(
+    token: &str,
+) -> Result<TokenData<Claims>, Box<dyn std::error::Error>> {
+    let secret = env::var("JWT_ACCESS_SECRET").map_err(|e| {
+        log::error!("{}", e);
+        Box::new(e)
+    })?;
+
+    let token_data = _decode_jwt_no_exp_validation(token, &secret)?;
 
     Ok(token_data)
 }

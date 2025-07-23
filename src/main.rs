@@ -101,6 +101,13 @@ async fn main() -> std::io::Result<()> {
                                 web::scope("")
                                     .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
                                     .service(
+                                        web::resource("/refresh").route(
+                                            web::post().to(
+                                                handlers::auth_handlers::refresh_handler::refresh,
+                                            ),
+                                        ),
+                                    )
+                                    .service(
                                         web::resource("/logout").route(
                                             web::post().to(
                                                 handlers::auth_handlers::logout_handler::logout,
