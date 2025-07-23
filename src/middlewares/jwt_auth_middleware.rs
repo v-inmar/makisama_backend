@@ -52,6 +52,8 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        println!("{}", req.path());
+
         let service = Rc::clone(&self.service);
 
         // get the authorization header value
@@ -98,6 +100,14 @@ where
                 let status: StatusCode;
 
                 if err_msg == "expiredsignature" {
+                    // make sure that it is let through if refresh enpoint is the target and the access token had expired
+                    // since this is the point of the handler, to refresh the tokens
+                    if req.path().eq_ignore_ascii_case("/api/auth/refresh") {
+                        // NOTE: since we dont have access to claims sub, we pass in the entire access token
+                        // for checking and comparing inside the refresh handler
+                        return _let_through(service, req, &access_token);
+                    }
+
                     resp_msg = "Access token has expired".to_owned();
                     status = StatusCode::UNAUTHORIZED;
                 } else if err_msg == "invalidsignature" {
@@ -121,12 +131,29 @@ where
             Ok(token_data) => token_data,
         };
 
-        // insert claimsub (user's auth identity) into request extension
-        req.extensions_mut().insert(token_data.claims.sub.clone());
+        _let_through(service, req, &token_data.claims.sub)
 
-        Box::pin(async move {
-            let res = service.call(req).await?;
-            Ok(res)
-        })
+        // insert claimsub (user's auth identity) into request extension
+        // req.extensions_mut().insert(token_data.claims.sub.clone());
+
+        // Box::pin(async move {
+        //     let res = service.call(req).await?;
+        //     Ok(res)
+        // })
     }
+}
+
+fn _let_through<S>(
+    service: Rc<S>,
+    req: ServiceRequest,
+    sub: &str,
+) -> LocalBoxFuture<'static, Result<ServiceResponse<BoxBody>, Error>>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<BoxBody>, Error = Error> + 'static,
+{
+    req.extensions_mut().insert(sub.to_string());
+    Box::pin(async move {
+        let res = service.call(req).await?;
+        Ok(res)
+    })
 }
