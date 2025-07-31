@@ -115,22 +115,29 @@ async fn main() -> std::io::Result<()> {
                                         ),
                                     ),
                             ),
+                    )
+                    .service(
+                        web::scope("/boards")
+                            .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                            .service(
+                                web::resource("")
+                                    .route(
+                                        web::post().to(
+                                            handlers::board_handlers::add_board_handler::add_board,
+                                        ),
+                                    )
+                                    .route(web::get().to(
+                                        handlers::board_handlers::get_boards_handler::get_boards,
+                                    )),
+                            )
+                            .service(
+                                web::resource("/{id}")
+                                    .route(web::get().to(
+                                        handlers::board_handlers::get_board_handler::get_board,
+                                    ))
+                                    .route(web::delete().to(handlers::board_handlers::delete_board_handler::delete_board)),
+                            ),
                     ),
-                // .service(
-                //     web::scope("/auth")
-                //         .service(handlers::auth_handlers::login_handler::login)
-                //         .service(handlers::auth_handlers::register_handler::register),
-                // )
-                // .service(
-                //     web::scope("/auth")
-                //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
-                //         .service(handlers::auth_handlers::logout_handler::logout),
-                // )
-                // .service(
-                //     web::scope("/users")
-                //         .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
-                //         .service(handlers::user_handlers::user_handler::get_user),
-                // ),
             )
             .default_service(web::route().to(|req: HttpRequest| async move {
                 JsonGeneralResponse::make_response(
