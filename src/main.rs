@@ -73,6 +73,7 @@ async fn main() -> std::io::Result<()> {
                     })
                     // any missing json key/value pairs that are expected
                     .app_data(web::JsonConfig::default().error_handler(|err, req| {
+                        println!("1");
                         let resp = JsonGeneralResponse::make_response(
                             &req,
                             &StatusCode::BAD_REQUEST,
@@ -132,6 +133,7 @@ async fn main() -> std::io::Result<()> {
                             )
                             .service(
                                 web::resource("/{id}")
+                                    .name("board")
                                     .route(web::get().to(
                                         handlers::board_handlers::get_board_handler::get_board,
                                     ))

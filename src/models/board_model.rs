@@ -6,5 +6,5 @@ use sqlx::FromRow;
 pub struct Board {
     pub id: i64,
     pub datetime_created: DateTime<Utc>,
-    pub board_name_id: i64,
+    pub name: String,
 }

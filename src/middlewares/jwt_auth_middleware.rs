@@ -130,7 +130,6 @@ where
                     );
                 } else {
                     log::error!("{}", e);
-                    println!("{}", e);
                     let resp = JsonGeneralResponse::make_response(
                         &req.request(),
                         &StatusCode::INTERNAL_SERVER_ERROR,

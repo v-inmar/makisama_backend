@@ -3,3 +3,4 @@ pub mod db_utils;
 pub mod header_utils;
 pub mod json_response_utils;
 pub mod jwt_utils;
+pub mod string_utils;
