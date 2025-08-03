@@ -1,5 +1,5 @@
 use crate::models::board_member_model::BoardMember;
-use sqlx::{MySql, Transaction};
+use sqlx::{MySql, Pool, Transaction};
 
 impl BoardMember {
     pub async fn new(
@@ -46,5 +46,34 @@ impl BoardMember {
 
         // Return the BoardMember object
         Ok(board_member)
+    }
+
+    pub async fn get_board_members_by_user_id_and_board_id(
+        pool: &Pool<MySql>,
+        user_id: i64,
+        board_id: i64,
+    ) -> Result<Option<BoardMember>, sqlx::error::Error> {
+        let bm = sqlx::query!(
+            r#"
+            SELECT id, datetime_created, board_id, user_id, is_owner, is_admin
+            FROM board_member
+            WHERE board_id=? AND user_id=?
+            "#,
+            board_id,
+            user_id
+        )
+        .fetch_optional(pool)
+        .await?
+        .map(|row| BoardMember {
+            // needed to convert the is_owner and is_admin from i8 (mysql) to bool
+            id: row.id,
+            datetime_created: row.datetime_created,
+            board_id: row.board_id,
+            user_id: row.user_id,
+            is_owner: row.is_owner != 0,
+            is_admin: row.is_admin != 0,
+        });
+
+        Ok(bm)
     }
 }

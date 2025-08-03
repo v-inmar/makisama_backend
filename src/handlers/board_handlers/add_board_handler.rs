@@ -136,7 +136,7 @@ pub async fn add_board(
             );
         }
         Ok(_) => {
-            let board_url = match req.url_for("board", &[&name]) {
+            let board_url = match req.url_for("get_board", &[&name]) {
                 Ok(bu) => bu,
                 Err(e) => {
                     log::error!("{}", e);

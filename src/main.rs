@@ -133,7 +133,7 @@ async fn main() -> std::io::Result<()> {
                             )
                             .service(
                                 web::resource("/{id}")
-                                    .name("board")
+                                    .name("get_board")
                                     .route(web::get().to(
                                         handlers::board_handlers::get_board_handler::get_board,
                                     ))
