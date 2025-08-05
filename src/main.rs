@@ -73,7 +73,6 @@ async fn main() -> std::io::Result<()> {
                     })
                     // any missing json key/value pairs that are expected
                     .app_data(web::JsonConfig::default().error_handler(|err, req| {
-                        println!("1");
                         let resp = JsonGeneralResponse::make_response(
                             &req,
                             &StatusCode::BAD_REQUEST,
