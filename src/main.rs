@@ -90,6 +90,10 @@ async fn main() -> std::io::Result<()> {
                         );
                         InternalError::from_response(err, resp).into()
                     }))
+                    .app_data(web::QueryConfig::default().error_handler(|err, req| {
+                        let resp = JsonGeneralResponse::make_response(&req, &StatusCode::BAD_REQUEST, &err.to_string().clone());
+                        InternalError::from_response(err, resp).into()
+                    }))
                     .service(
                         web::scope("/auth")
                             .service(web::resource("/login").route(
