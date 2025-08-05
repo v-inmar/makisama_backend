@@ -90,6 +90,7 @@ async fn main() -> std::io::Result<()> {
                         );
                         InternalError::from_response(err, resp).into()
                     }))
+                    // any errors associated with query params before it reached the handler
                     .app_data(web::QueryConfig::default().error_handler(|err, req| {
                         let resp = JsonGeneralResponse::make_response(&req, &StatusCode::BAD_REQUEST, &err.to_string().clone());
                         InternalError::from_response(err, resp).into()
@@ -137,7 +138,7 @@ async fn main() -> std::io::Result<()> {
                             )
                             .service(
                                 web::resource("/{id}")
-                                    .name("get_board")
+                                    .name("get_board") // resource name so it can be used in url_for
                                     .route(web::get().to(
                                         handlers::board_handlers::get_board_handler::get_board,
                                     ))
