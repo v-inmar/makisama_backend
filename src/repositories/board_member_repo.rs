@@ -80,14 +80,22 @@ impl BoardMember {
     pub async fn get_board_members_by_user_id(
         pool: &Pool<MySql>,
         user_id: i64,
+        page: i64,
+        per_page: i64,
     ) -> Result<Option<Vec<BoardMember>>, sqlx::error::Error> {
+        let offset = (page - 1) * per_page;
+
         let bms = sqlx::query!(
             r#"
         SELECT id, datetime_created, board_id, user_id, is_owner, is_admin
         FROM board_member
         WHERE user_id=?
+        LIMIT ?
+        OFFSET ?
         "#,
-            user_id
+            user_id,
+            per_page,
+            offset
         )
         .fetch_all(pool)
         .await?

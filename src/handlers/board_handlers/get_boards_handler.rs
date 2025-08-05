@@ -24,7 +24,20 @@ pub struct GetBoardsResponse {
     pub boards: Vec<UserBoard>,
 }
 
-pub async fn get_boards(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Responder {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GetBoardsQueryParams {
+    pub page: Option<u64>,
+    pub per_page: Option<u64>,
+}
+
+pub async fn get_boards(
+    req: HttpRequest,
+    pool: web::Data<MySqlPool>,
+    query: web::Query<GetBoardsQueryParams>,
+) -> impl Responder {
+    let page = query.page.unwrap_or(1) as i64;
+    let per_page = query.per_page.unwrap_or(10) as i64;
+
     // Get user from auth identity
     let at_sub = match req.extensions().get::<String>() {
         Some(sub) => sub.clone(),
@@ -58,7 +71,7 @@ pub async fn get_boards(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Re
 
     // this will get all the BoardMember objects that matches user's id
     let board_members: Vec<BoardMember> =
-        match BoardMember::get_board_members_by_user_id(&pool, user.id).await {
+        match BoardMember::get_board_members_by_user_id(&pool, user.id, page, per_page).await {
             Err(e) => {
                 log::error!("{}", e);
                 return JsonGeneralResponse::make_response(
