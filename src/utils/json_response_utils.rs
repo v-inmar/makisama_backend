@@ -9,10 +9,31 @@ pub struct RequestDetails {
     pub method: String,
 }
 
+impl RequestDetails {
+    pub fn new(req: &HttpRequest) -> RequestDetails {
+        return RequestDetails {
+            path: req.path().to_string(),
+            method: req.method().to_string(),
+        };
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StatusDetails {
     pub code: u16,
     pub status: String,
+}
+
+impl StatusDetails {
+    pub fn new(code: &StatusCode) -> StatusDetails {
+        return StatusDetails {
+            code: code.as_u16(),
+            status: code
+                .canonical_reason()
+                .unwrap_or("Internal Server Error")
+                .to_string(),
+        };
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,18 +48,21 @@ impl JsonGeneralResponse {
         let mut response_builder = HttpResponse::build(*code);
         response_builder.content_type("application/json");
 
-        let status_details = StatusDetails {
-            code: code.as_u16(),
-            status: code
-                .canonical_reason()
-                .unwrap_or("Internal Server Error")
-                .to_string(),
-        };
+        // let status_details = StatusDetails {
+        //     code: code.as_u16(),
+        //     status: code
+        //         .canonical_reason()
+        //         .unwrap_or("Internal Server Error")
+        //         .to_string(),
+        // };
 
-        let request_details = RequestDetails {
-            path: req.path().to_string(),
-            method: req.method().to_string(),
-        };
+        let status_details = StatusDetails::new(&code);
+
+        let request_details = RequestDetails::new(&req);
+        // let request_details = RequestDetails {
+        //     path: req.path().to_string(),
+        //     method: req.method().to_string(),
+        // };
 
         response_builder.json(JsonGeneralResponse {
             request_details: request_details,

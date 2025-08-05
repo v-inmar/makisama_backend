@@ -76,4 +76,33 @@ impl BoardMember {
 
         Ok(bm)
     }
+
+    pub async fn get_board_members_by_user_id(
+        pool: &Pool<MySql>,
+        user_id: i64,
+    ) -> Result<Option<Vec<BoardMember>>, sqlx::error::Error> {
+        let bms = sqlx::query!(
+            r#"
+        SELECT id, datetime_created, board_id, user_id, is_owner, is_admin
+        FROM board_member
+        WHERE user_id=?
+        "#,
+            user_id
+        )
+        .fetch_all(pool)
+        .await?
+        .into_iter() // Change to .into_iter() for proper ownership transfer
+        .map(|row| BoardMember {
+            id: row.id,
+            datetime_created: row.datetime_created,
+            board_id: row.board_id,
+            user_id: row.user_id,
+            // Convert i8 to bool
+            is_owner: row.is_owner != 0,
+            is_admin: row.is_admin != 0,
+        })
+        .collect(); // Collect into a vector
+
+        Ok(Some(bms)) // Return wrapped in Some (as the function returns Option<Vec<_>>)
+    }
 }
