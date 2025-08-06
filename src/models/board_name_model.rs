@@ -3,9 +3,8 @@ use serde::Serialize;
 use sqlx::FromRow;
 
 #[derive(Debug, FromRow, Serialize)]
-pub struct Board {
+pub struct BoardName {
     pub id: i64,
     pub datetime_created: DateTime<Utc>,
-    pub deleted: Option<DateTime<Utc>>,
-    pub name_id: Option<i64>,
+    pub name: String,
 }

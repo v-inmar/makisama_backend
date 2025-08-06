@@ -5,8 +5,9 @@ use sqlx::MySqlPool;
 
 use crate::models::auth_identity_model::AuthIdentity;
 use crate::models::board_model::Board;
+use crate::models::board_name_model::BoardName;
 use crate::models::user_model::User;
-use crate::services::board_service::add_new_board_service;
+use crate::services::board_service::create_board_service;
 use crate::utils::json_response_utils::JsonGeneralResponse;
 use crate::utils::string_utils::is_alphanumeric_or_underscore;
 use crate::utils::string_utils::is_first_character_underscore;
@@ -21,7 +22,8 @@ pub async fn add_board(
     pool: web::Data<MySqlPool>,
     json_data: web::Json<AddBoardRequestData>,
 ) -> impl Responder {
-    // this for now, replace with validator
+    // ** this for now, replace with validator **
+
     let name = json_data.name.to_lowercase().to_string();
 
     // check length (5 - 128)
@@ -107,7 +109,7 @@ pub async fn add_board(
     };
 
     // check if board name is already taken and in use
-    match Board::get_by_name(&pool, &name).await {
+    match BoardName::get_by_name(&pool, &name).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -116,17 +118,29 @@ pub async fn add_board(
                 "Server error, try again later",
             );
         }
-        Ok(Some(_)) => {
-            return JsonGeneralResponse::make_response(
-                &req,
-                &StatusCode::CONFLICT,
-                "Name already in use",
-            );
-        }
-        Ok(_) => {}
+        Ok(Some(bn)) => match Board::get_by_name_id(&pool, bn.id).await {
+            Err(e) => {
+                log::error!("{}", e);
+                return JsonGeneralResponse::make_response(
+                    &req,
+                    &StatusCode::INTERNAL_SERVER_ERROR,
+                    "Server error, try again later",
+                );
+            }
+            Ok(Some(_)) => {
+                return JsonGeneralResponse::make_response(
+                    &req,
+                    &StatusCode::CONFLICT,
+                    "Name already in use",
+                );
+            }
+            Ok(None) => {}
+        },
+        Ok(None) => {}
     }
 
-    match add_new_board_service(&pool, &name, user.id).await {
+    // Call add new board service
+    match create_board_service(&pool, &name, user.id).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -136,6 +150,8 @@ pub async fn add_board(
             );
         }
         Ok(_) => {
+            // it is safe to use the client-sent name value since it can only contain alphanumeric and underscore
+            // it was checked above
             let board_url = match req.url_for("get_board", &[&name]) {
                 Ok(bu) => bu,
                 Err(e) => {

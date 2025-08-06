@@ -5,26 +5,26 @@ use crate::models::board_model::Board;
 impl Board {
     pub async fn new(
         tx: &mut Transaction<'_, MySql>,
-        name: &str,
+        name_id: i64,
     ) -> Result<Board, Box<dyn std::error::Error>> {
         sqlx::query!(
             r#"
             INSERT INTO board (
-            name
+            name_id
             )
             VALUES (
             ?
             )
             "#,
-            name
+            name_id
         )
         .execute(&mut **tx)
         .await?;
 
-        let board: Board = sqlx::query_as!(
+        let row: Board = sqlx::query_as!(
             Board,
             r#"
-            SELECT id, datetime_created, name
+            SELECT id, datetime_created, deleted, name_id
             FROM board
             WHERE id = LAST_INSERT_ID()
             "#
@@ -32,21 +32,21 @@ impl Board {
         .fetch_one(&mut **tx)
         .await?;
 
-        Ok(board)
+        Ok(row)
     }
 
-    pub async fn get_by_name(
+    pub async fn get_by_name_id(
         pool: &Pool<MySql>,
-        name: &str,
+        name_id: i64,
     ) -> Result<Option<Board>, sqlx::error::Error> {
         let board = sqlx::query_as!(
             Board,
             r#"
-            SELECT id, datetime_created, name
+            SELECT id, datetime_created, deleted, name_id
             FROM board
-            WHERE name = ?
+            WHERE name_id = ?
             "#,
-            name
+            name_id
         )
         .fetch_optional(pool)
         .await?;
@@ -61,7 +61,7 @@ impl Board {
         let board = sqlx::query_as!(
             Board,
             r#"
-            SELECT id, datetime_created, name
+            SELECT id, datetime_created, deleted, name_id
             FROM board
             WHERE id = ?
             "#,
