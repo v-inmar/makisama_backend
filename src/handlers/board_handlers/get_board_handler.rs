@@ -4,6 +4,7 @@ use sqlx::MySqlPool;
 
 use crate::models::board_member_model::BoardMember;
 use crate::models::board_model::Board;
+use crate::models::board_name_model::BoardName;
 use crate::utils::handler_utils::get_user_by_auth_identity;
 use crate::utils::json_response_utils::JsonGeneralResponse;
 
@@ -12,10 +13,30 @@ pub async fn get_board(
     pool: web::Data<MySqlPool>,
     name: web::Path<String>,
 ) -> impl Responder {
-    let board_name = name.as_str().to_lowercase();
+    let bname = name.as_str().to_lowercase();
+
+    // get board name
+    let board_name = match BoardName::get_by_name(&pool, &bname).await {
+        Err(e) => {
+            log::error!("{}", e);
+            return JsonGeneralResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error, try again later.",
+            );
+        }
+        Ok(None) => {
+            return JsonGeneralResponse::make_response(
+                &req,
+                &StatusCode::NOT_FOUND,
+                "Resource not found.",
+            );
+        }
+        Ok(Some(bn)) => bn,
+    };
 
     // get the board
-    let board = match Board::get_by_name(&pool, &board_name).await {
+    let board = match Board::get_by_name_id(&pool, board_name.id).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -85,6 +106,5 @@ pub async fn get_board(
         Ok(Some(_)) => {}
     }
 
-    // get the user from req.extension
-    JsonGeneralResponse::make_response(&req, &StatusCode::OK, &board.name)
+    JsonGeneralResponse::make_response(&req, &StatusCode::OK, &board_name.name)
 }

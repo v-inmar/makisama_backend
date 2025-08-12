@@ -1,4 +1,4 @@
-use crate::models::lastname_model::Lastname;
+use crate::models::user_lastname_model::Lastname;
 use sqlx::{MySql, Pool, Transaction};
 
 impl Lastname {

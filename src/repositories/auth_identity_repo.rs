@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use sqlx::{MySql, Pool, Transaction};
 
-use crate::models::auth_identity_model::AuthIdentity;
+use crate::models::user_auth_identity_model::AuthIdentity;
 
 impl AuthIdentity {
     pub async fn new(

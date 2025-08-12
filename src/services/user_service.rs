@@ -5,8 +5,8 @@ use uuid::Uuid;
 use crate::{
     handlers::auth_handlers::register_handler::RegisterRequestData,
     models::{
-        auth_identity_model::AuthIdentity, firstname_model::Firstname, lastname_model::Lastname,
-        user_model::User,
+        user_auth_identity_model::AuthIdentity, user_firstname_model::Firstname,
+        user_lastname_model::Lastname, user_model::User,
     },
     utils::bcrypt_utils::make_hash,
 };

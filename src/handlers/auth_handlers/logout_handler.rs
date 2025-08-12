@@ -3,8 +3,8 @@ use actix_web::{HttpRequest, Responder, http::StatusCode};
 use chrono::{DateTime, Duration, Utc};
 use sqlx::MySqlPool;
 
-use crate::models::auth_identity_model::AuthIdentity;
 use crate::models::revoked_token_model::RevokedToken;
+use crate::models::user_auth_identity_model::AuthIdentity;
 use crate::models::user_model::User;
 use crate::services::{auth_service, user_service};
 use crate::utils::json_response_utils::JsonGeneralResponse;

@@ -1,7 +1,7 @@
 -- Add up migration script here
 CREATE TABLE revoked_token (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     value TEXT NOT NULL,
-    datetime_ttl TIMESTAMP NOT NULL,
-    datetime_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    datetime_ttl DATETIME NOT NULL,
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

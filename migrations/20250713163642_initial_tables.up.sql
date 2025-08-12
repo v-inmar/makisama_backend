@@ -1,35 +1,49 @@
 -- Add up migration script here
-CREATE TABLE auth_identity (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE user_auth_identity (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     value VARCHAR(64) NOT NULL UNIQUE,
-    datetime_ttl TIMESTAMP DEFAULT NULL,
-    datetime_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    datetime_ttl DATETIME DEFAULT NULL,
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE firstname (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE user_firstname (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     value VARCHAR(64) NOT NULL UNIQUE,
-    datetime_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE lastname (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE user_lastname (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     value VARCHAR(64) NOT NULL UNIQUE,
-    datetime_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_email (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    value VARCHAR(255) NOT NULL UNIQUE,
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_pid (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    value VARCHAR(32) NOT NULL UNIQUE,
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `user` (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     password VARCHAR(255) NOT NULL,
-    username VARCHAR(64) NOT NULL UNIQUE,
-    datetime_deactivated TIMESTAMP DEFAULT NULL,
-    datetime_deleted TIMESTAMP DEFAULT NULL,
-    datetime_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    auth_identity_id BIGINT NOT NULL UNIQUE,
-    firstname_id BIGINT NOT NULL,
-    lastname_id BIGINT NOT NULL,
-    FOREIGN KEY (auth_identity_id) REFERENCES auth_identity(id),
-    FOREIGN KEY (firstname_id) REFERENCES firstname(id),
-    FOREIGN KEY (lastname_id) REFERENCES lastname(id)
+    datetime_deactivated DATETIME DEFAULT NULL,
+    datetime_deleted DATETIME DEFAULT NULL,
+    auth_identity_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    email_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    pid_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    firstname_id BIGINT UNSIGNED NOT NULL,
+    lastname_id BIGINT UNSIGNED NOT NULL,
+    FOREIGN KEY (auth_identity_id) REFERENCES user_auth_identity(id),
+    FOREIGN KEY (email_id) REFERENCES user_email(id),
+    FOREIGN KEY (pid_id) REFERENCES user_pid(id),
+    FOREIGN KEY (firstname_id) REFERENCES user_firstname(id),
+    FOREIGN KEY (lastname_id) REFERENCES user_lastname(id)
 );

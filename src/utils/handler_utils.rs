@@ -1,6 +1,6 @@
 use sqlx::{MySql, Pool};
 
-use crate::models::auth_identity_model::AuthIdentity;
+use crate::models::user_auth_identity_model::AuthIdentity;
 use crate::models::user_model::User;
 
 pub async fn get_user_by_auth_identity(

@@ -3,7 +3,7 @@ use actix_web::{HttpRequest, Responder, web};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
-use crate::models::auth_identity_model::AuthIdentity;
+use crate::models::user_auth_identity_model::AuthIdentity;
 use crate::models::user_model::User;
 use crate::services::user_service::register_new_user;
 use crate::utils::json_response_utils::{JsonGeneralResponse, JsonJwtResponse};

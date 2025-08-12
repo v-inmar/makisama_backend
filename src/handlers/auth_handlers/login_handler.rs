@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
 use crate::{
-    models::{auth_identity_model::AuthIdentity, user_model::User},
+    models::{user_auth_identity_model::AuthIdentity, user_model::User},
     utils::{
         bcrypt_utils::is_matched,
         json_response_utils::JsonGeneralResponse,

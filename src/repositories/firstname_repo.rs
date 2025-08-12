@@ -1,4 +1,4 @@
-use crate::models::firstname_model::Firstname;
+use crate::models::user_firstname_model::Firstname;
 use sqlx::{MySql, Pool, Transaction};
 
 impl Firstname {

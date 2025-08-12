@@ -45,6 +45,7 @@ impl Board {
             SELECT id, datetime_created, deleted, name_id
             FROM board
             WHERE name_id = ?
+            AND deleted = NULL
             "#,
             name_id
         )

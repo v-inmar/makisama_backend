@@ -3,7 +3,7 @@ use actix_web::{HttpRequest, Responder, http::StatusCode, web};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
-use crate::models::auth_identity_model::AuthIdentity;
+use crate::models::user_auth_identity_model::AuthIdentity;
 use crate::models::board_model::Board;
 use crate::models::board_name_model::BoardName;
 use crate::models::user_model::User;
