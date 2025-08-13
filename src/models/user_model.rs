@@ -1,17 +1,188 @@
-use chrono::{DateTime, Utc};
+use chrono::NaiveDateTime;
 use serde::Serialize;
-use sqlx::FromRow;
+use sqlx::{FromRow, MySql, Pool, Transaction};
 
+/// A struct representing a user in the system.
 #[derive(Debug, FromRow, Serialize)]
 pub struct User {
+    /// The unique identifier for the user.
     pub id: u64,
-    pub datetime_created: DateTime<Utc>,
+    /// The datetime when the user was created.
+    pub datetime_created: NaiveDateTime,
+    /// The user's hashed password.
     pub password: String,
-    pub datetime_deactivated: Option<DateTime<Utc>>,
-    pub datetime_deleted: Option<DateTime<Utc>>,
+    /// The datetime when the user was deactivated (if applicable).
+    pub datetime_deactivated: Option<NaiveDateTime>,
+    /// The datetime when the user was deleted (if applicable).
+    pub datetime_deleted: Option<NaiveDateTime>,
+    /// The unique identifier for the user's authentication identity.
     pub auth_identity_id: u64,
+    /// The unique identifier for the user's email.
     pub email_id: u64,
+    /// The unique identifier for the user's PID (personal identifier).
     pub pid_id: u64,
+    /// The unique identifier for the user's first name.
     pub firstname_id: u64,
+    /// The unique identifier for the user's last name.
     pub lastname_id: u64,
+}
+
+/*
+
+CREATE TABLE `user` (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    password VARCHAR(255) NOT NULL,
+    datetime_deactivated DATETIME DEFAULT NULL,
+    datetime_deleted DATETIME DEFAULT NULL,
+    auth_identity_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    email_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    pid_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    firstname_id BIGINT UNSIGNED NOT NULL,
+    lastname_id BIGINT UNSIGNED NOT NULL,
+    FOREIGN KEY (auth_identity_id) REFERENCES user_auth_identity(id),
+    FOREIGN KEY (email_id) REFERENCES user_email(id),
+    FOREIGN KEY (pid_id) REFERENCES user_pid(id),
+    FOREIGN KEY (firstname_id) REFERENCES user_firstname(id),
+    FOREIGN KEY (lastname_id) REFERENCES user_lastname(id)
+);
+
+*/
+
+impl User {
+    /// Creates a new `User` entry in the database.
+    ///
+    /// This function inserts a new user record with the provided information, including the hashed
+    /// password, and returns the newly created `User` struct with all fields populated.
+    ///
+    /// # Arguments
+    /// * `tx` - The SQL transaction to be used for executing the insert query.
+    /// * `hashed_password` - The hashed password for the user.
+    /// * `auth_identity_id` - The unique ID of the user's authentication identity.
+    /// * `email_id` - The unique ID of the user's email.
+    /// * `firstname_id` - The unique ID of the user's first name.
+    /// * `lastname_id` - The unique ID of the user's last name.
+    ///
+    /// # Returns
+    /// * `Result<User, sqlx::error::Error>` - A result containing the created `User` struct, or an error
+    ///   if the insert or select operation fails.
+    pub async fn new(
+        tx: &mut Transaction<'_, MySql>,
+        hashed_password: &str,
+        auth_identity_id: u64,
+        email_id: u64,
+        firstname_id: u64,
+        lastname_id: u64,
+    ) -> Result<User, sqlx::error::Error> {
+        sqlx::query!(
+            r#"
+            INSERT INTO user (password, auth_identity_id, email_id, firstname_id, lastname_id)
+            VALUES (?, ?, ?, ?, ?)
+            "#,
+            hashed_password,
+            auth_identity_id,
+            email_id,
+            firstname_id,
+            lastname_id
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        let row = sqlx::query_as!(
+            User,
+            r#"
+            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            FROM user
+            WHERE id = LAST_INSERT_ID()
+            "#
+        )
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
+    }
+
+    /// Fetches a `User` record by its unique `id`.
+    ///
+    /// # Arguments
+    /// * `pool` - The database connection pool to query from.
+    /// * `id` - The unique identifier of the `User` to retrieve.
+    ///
+    /// # Returns
+    /// * `Result<Option<User>, sqlx::error::Error>` - A result containing an `Option` of `User`,
+    ///   which will be `Some(User)` if found, or `None` if no record is found.
+    pub async fn get_by_id(
+        pool: &Pool<MySql>,
+        id: u64,
+    ) -> Result<Option<User>, sqlx::error::Error> {
+        let row = sqlx::query_as!(
+            User,
+            r#"
+            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            FROM user
+            WHERE id = ?
+            "#,
+            id
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    /// Fetches a `User` record by its unique `email_id`.
+    ///
+    /// # Arguments
+    /// * `pool` - The database connection pool to query from.
+    /// * `id` - The unique identifier of the user's email to retrieve the `User`.
+    ///
+    /// # Returns
+    /// * `Result<Option<User>, sqlx::error::Error>` - A result containing an `Option` of `User`,
+    ///   which will be `Some(User)` if found, or `None` if no record is found.
+    pub async fn get_by_email_id(
+        pool: &Pool<MySql>,
+        id: u64,
+    ) -> Result<Option<User>, sqlx::error::Error> {
+        let row = sqlx::query_as!(
+            User,
+            r#"
+            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            FROM user
+            WHERE email_id = ?
+            "#,
+            id
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    /// Fetches a `User` record by its unique `auth_identity_id`.
+    ///
+    /// # Arguments
+    /// * `pool` - The database connection pool to query from.
+    /// * `id` - The unique identifier of the user's authentication identity to retrieve the `User`.
+    ///
+    /// # Returns
+    /// * `Result<Option<User>, sqlx::error::Error>` - A result containing an `Option` of `User`,
+    ///   which will be `Some(User)` if found, or `None` if no record is found.
+    pub async fn get_by_auth_identity_id(
+        pool: &Pool<MySql>,
+        id: u64,
+    ) -> Result<Option<User>, sqlx::error::Error> {
+        let row = sqlx::query_as!(
+            User,
+            r#"
+            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            FROM user
+            WHERE auth_identity_id = ?
+            "#,
+            id
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row)
+    }
 }
