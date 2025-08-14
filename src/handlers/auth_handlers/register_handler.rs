@@ -14,7 +14,6 @@ pub struct RegisterRequestData {
     pub firstname: String,
     pub lastname: String,
     pub email: String,
-    pub username: String,
     pub password: String,
     pub repeat: String,
 }

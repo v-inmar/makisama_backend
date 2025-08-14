@@ -34,6 +34,7 @@ CREATE TABLE `user` (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     password VARCHAR(255) NOT NULL,
+    datetime_confirmed DATETIME DEFAULT NULL,
     datetime_deactivated DATETIME DEFAULT NULL,
     datetime_deleted DATETIME DEFAULT NULL,
     auth_identity_id BIGINT UNSIGNED NOT NULL UNIQUE,

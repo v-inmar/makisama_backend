@@ -11,6 +11,8 @@ pub struct User {
     pub datetime_created: NaiveDateTime,
     /// The user's hashed password.
     pub password: String,
+    /// The datetime when the user was confirmed (if applicable).
+    pub datetime_confirmed: Option<NaiveDateTime>,
     /// The datetime when the user was deactivated (if applicable).
     pub datetime_deactivated: Option<NaiveDateTime>,
     /// The datetime when the user was deleted (if applicable).
@@ -33,6 +35,7 @@ CREATE TABLE `user` (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     password VARCHAR(255) NOT NULL,
+    datetime_confirmed DATETIME DEFAULT NULL,
     datetime_deactivated DATETIME DEFAULT NULL,
     datetime_deleted DATETIME DEFAULT NULL,
     auth_identity_id BIGINT UNSIGNED NOT NULL UNIQUE,
@@ -60,6 +63,7 @@ impl User {
     /// * `hashed_password` - The hashed password for the user.
     /// * `auth_identity_id` - The unique ID of the user's authentication identity.
     /// * `email_id` - The unique ID of the user's email.
+    /// * `pid_id` - The unique ID of the user's pid.
     /// * `firstname_id` - The unique ID of the user's first name.
     /// * `lastname_id` - The unique ID of the user's last name.
     ///
@@ -71,17 +75,19 @@ impl User {
         hashed_password: &str,
         auth_identity_id: u64,
         email_id: u64,
+        pid_id: u64,
         firstname_id: u64,
         lastname_id: u64,
     ) -> Result<User, sqlx::error::Error> {
         sqlx::query!(
             r#"
-            INSERT INTO user (password, auth_identity_id, email_id, firstname_id, lastname_id)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO user (password, auth_identity_id, email_id, pid_id, firstname_id, lastname_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             "#,
             hashed_password,
             auth_identity_id,
             email_id,
+            pid_id,
             firstname_id,
             lastname_id
         )
@@ -91,7 +97,7 @@ impl User {
         let row = sqlx::query_as!(
             User,
             r#"
-            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            SELECT id, datetime_created, password, datetime_confirmed, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
             FROM user
             WHERE id = LAST_INSERT_ID()
             "#
@@ -118,7 +124,7 @@ impl User {
         let row = sqlx::query_as!(
             User,
             r#"
-            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            SELECT id, datetime_created, password, datetime_confirmed, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
             FROM user
             WHERE id = ?
             "#,
@@ -146,7 +152,7 @@ impl User {
         let row = sqlx::query_as!(
             User,
             r#"
-            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            SELECT id, datetime_created, password, datetime_confirmed, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
             FROM user
             WHERE email_id = ?
             "#,
@@ -174,7 +180,7 @@ impl User {
         let row = sqlx::query_as!(
             User,
             r#"
-            SELECT id, datetime_created, password, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
+            SELECT id, datetime_created, password, datetime_confirmed, datetime_deactivated, datetime_deleted, auth_identity_id, email_id, pid_id, firstname_id, lastname_id
             FROM user
             WHERE auth_identity_id = ?
             "#,
