@@ -134,6 +134,74 @@ pub async fn create_user(
     Ok(user_obj)
 }
 
+/// Updates a user's authentication identity by generating a new `UserAuthIdentity` and associating it with the user.
+///
+/// This method creates a new `UserAuthIdentity` (ensuring its uniqueness), and then updates the `auth_identity_id`
+/// of the given user with the new `UserAuthIdentity`. It wraps the operation in a database transaction to ensure
+/// atomicity. If the process of generating a unique `UserAuthIdentity` fails after several attempts, an error is returned.
+///
+/// # Arguments
+///
+/// * `pool` - A reference to the database connection pool for executing queries.
+/// * `user` - The user whose `auth_identity_id` is being updated.
+///
+/// # Returns
+///
+/// * `Result<(), sqlx::error::Error>` - A result indicating success or failure of the operation. If the update is
+///   successful, it returns `Ok(())`. If an error occurs at any point, it returns an error with relevant details.
+///
+/// # Behavior
+///
+/// 1. The function attempts to generate a unique `UserAuthIdentity` ID (using a UUID) and ensures that the ID does not
+///    already exist in the database by querying `UserAuthIdentity::get_by_value`.
+/// 2. If a unique `UserAuthIdentity` is found, it is created and associated with the user by updating their `auth_identity_id`.
+/// 3. The operation is wrapped in a transaction, ensuring atomicity.
+/// 4. If the system cannot generate a unique `UserAuthIdentity` after 6 attempts, it logs an error and returns a failure.
+///
+/// # Example
+///
+/// ```rust
+/// let result = update_user_auth_identity_id(&pool, &user).await;
+/// match result {
+///     Ok(_) => println!("User auth identity updated successfully."),
+///     Err(e) => eprintln!("Error updating user auth identity: {:?}", e),
+/// }
+/// ```
+pub async fn update_user_auth_identity_id(
+    pool: &Pool<MySql>,
+    user: &User,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut tx = pool.begin().await?;
+
+    // -- auth identity
+    let user_auth_identity: UserAuthIdentity;
+    let mut counter = 0;
+    loop {
+        if counter == 6 {
+            let err_msg = "Error while creating UserAuthIdentity. Try limit has been reached";
+            log::error!("{}", err_msg);
+            return Err(err_msg.into());
+        }
+
+        counter += 1;
+        let auth_identity_value = Uuid::new_v4().to_string(); // can be up to 36 chars long
+        match UserAuthIdentity::get_by_value(&pool, &auth_identity_value).await? {
+            Some(_) => continue,
+            None => {
+                user_auth_identity = UserAuthIdentity::new(&mut tx, &auth_identity_value).await?;
+                break;
+            }
+        }
+    }
+
+    user.update_auth_identity_id(&mut tx, user_auth_identity.id)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
 // use chrono::{Duration, Utc};
 // use sqlx::{MySql, Pool};
 // use uuid::Uuid;

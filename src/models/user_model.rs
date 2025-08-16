@@ -191,4 +191,46 @@ impl User {
 
         Ok(row)
     }
+
+    /// Updates the `auth_identity_id` for the current `User`.
+    ///
+    /// This method updates the `auth_identity_id` field of the user in the database based on the user's
+    /// `id`. This can be used to change the user's authentication identity, for example, if the user
+    /// changes their login credentials or switches authentication providers.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx` - The SQL transaction to execute the update query.
+    /// * `user_auth_identity_id` - The new authentication identity ID to assign to the user.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), sqlx::error::Error>` - A result indicating whether the update operation was successful.
+    ///   If successful, it returns `Ok(())`. If an error occurs, it returns the error encountered.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let user = get_user_by_id(&pool, user_id).await?;
+    /// user.update_auth_identity_id(&mut tx, new_auth_identity_id).await?;
+    /// ```
+    pub async fn update_auth_identity_id(
+        &self,
+        tx: &mut Transaction<'_, MySql>,
+        user_auth_identity_id: u64,
+    ) -> Result<(), sqlx::error::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE user
+            SET auth_identity_id = ?
+            WHERE id = ?
+            "#,
+            user_auth_identity_id,
+            self.id
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(())
+    }
 }

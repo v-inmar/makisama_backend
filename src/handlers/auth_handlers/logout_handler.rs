@@ -4,7 +4,7 @@ use chrono::{DateTime, Duration, Utc};
 use sqlx::MySqlPool;
 
 use crate::models::revoked_token_model::RevokedToken;
-use crate::models::user_auth_identity_model::AuthIdentity;
+use crate::models::user_auth_identity_model::UserAuthIdentity;
 use crate::models::user_model::User;
 use crate::services::{auth_service, user_service};
 use crate::utils::json_response_utils::JsonGeneralResponse;
@@ -20,7 +20,7 @@ pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Respon
             return JsonGeneralResponse::make_response(
                 &req,
                 &StatusCode::UNAUTHORIZED,
-                "Must be authenticated",
+                "User must be authenticated",
             );
         }
     };
@@ -86,6 +86,7 @@ pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Respon
                 log::error!("{}", e);
                 if e.to_string().to_lowercase() == "expiredsignature" {
                     // still revoke this token to stop further reuse, just in case
+
                     // it has already expired so for datetime_ttl, use utc now + 7 days
                     let ttl = Utc::now() + Duration::days(7);
                     match auth_service::revoke_user_refresh_token(
@@ -115,7 +116,7 @@ pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Respon
     // this will basically logout the user on all devices
 
     // 1. get the user that owns the auth_id_value
-    match AuthIdentity::get_by_value(&pool, &sub).await {
+    match UserAuthIdentity::get_by_value(&pool, &sub).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -131,7 +132,7 @@ pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Respon
                 "Must be authenticated",
             );
         }
-        Ok(Some(aio)) => match User::get_user_by_auth_identity_id(&pool, aio.id).await {
+        Ok(Some(uai)) => match User::get_by_auth_identity_id(&pool, uai.id).await {
             Err(e) => {
                 log::error!("{}", e);
                 return JsonGeneralResponse::make_response(
@@ -147,23 +148,25 @@ pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Respon
                     "Must be authenticated",
                 );
             }
-            Ok(Some(user)) => match user_service::create_new_auth_id(&pool, &user).await {
-                Ok(_) => {
-                    return JsonGeneralResponse::make_response(
-                        &req,
-                        &StatusCode::OK,
-                        "Logout successful",
-                    );
+            Ok(Some(user)) => {
+                match user_service::update_user_auth_identity_id(&pool, &user).await {
+                    Ok(_) => {
+                        return JsonGeneralResponse::make_response(
+                            &req,
+                            &StatusCode::OK,
+                            "Logout successful",
+                        );
+                    }
+                    Err(e) => {
+                        log::error!("{}", e);
+                        return JsonGeneralResponse::make_response(
+                            &req,
+                            &StatusCode::INTERNAL_SERVER_ERROR,
+                            "Server error, try again later",
+                        );
+                    }
                 }
-                Err(e) => {
-                    log::error!("{}", e);
-                    return JsonGeneralResponse::make_response(
-                        &req,
-                        &StatusCode::INTERNAL_SERVER_ERROR,
-                        "Server error, try again later",
-                    );
-                }
-            },
+            }
         },
     }
 }
