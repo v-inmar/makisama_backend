@@ -152,7 +152,10 @@ pub async fn register(
             );
         }
         Ok(None) => {
-            log::error!("Unable to get user auth identity id from newly created user");
+            log::error!(
+                "Unable to get user auth identity id from newly created user. user id: {}",
+                user.id
+            );
             return JsonGeneralResponse::make_response(
                 &req,
                 &StatusCode::INTERNAL_SERVER_ERROR,
