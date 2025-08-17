@@ -102,7 +102,7 @@ impl Board {
             r#"
             SELECT id, datetime_created, datetime_deleted, pid_id, name_id, description_id
             FROM board
-            WHERE id = ?
+            WHERE id = ? AND datetime_deleted IS NULL
             "#,
             id
         )
