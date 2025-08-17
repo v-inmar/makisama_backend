@@ -3,6 +3,11 @@ use serde::Serialize;
 use sqlx::{FromRow, MySql, Pool, Transaction};
 
 /// Represents a record in the `board_user` table.
+///
+/// This struct models the relationship between a `board` and a `user` in the database. It tracks
+/// whether the user is the owner or admin of the board and includes a timestamp for when the
+/// user was added or removed from the board. The `datetime_removed` field is an optional field
+/// that represents when the user was removed from the board.
 #[derive(Debug, FromRow, Serialize)]
 pub struct BoardUser {
     /// The unique identifier of the board-user association record.
@@ -22,13 +27,19 @@ pub struct BoardUser {
 
     /// A boolean indicating whether the user is an admin of the board.
     pub is_admin: bool,
+
+    /// The timestamp when the user was removed from the board, if applicable. This is `None`
+    /// if the user is still active on the board.
+    pub datetime_removed: Option<NaiveDateTime>,
 }
+
 impl BoardUser {
     /// Creates a new `BoardUser` record in the database.
     ///
     /// This function inserts a new row into the `board_user` table with the provided `board_id`,
     /// `user_id`, `is_owner`, and `is_admin` values. The boolean fields `is_owner` and `is_admin`
-    /// are converted to `i8` (`0` or `1`) for compatibility with MySQL.
+    /// are converted to `i8` (`0` or `1`) for compatibility with MySQL. The `datetime_removed` field
+    /// will default to `NULL`, indicating the user is not removed from the board.
     ///
     /// # Arguments
     ///
@@ -51,8 +62,8 @@ impl BoardUser {
         // Insert the new board-user record into the `board_user` table
         sqlx::query!(
             r#"
-            INSERT INTO board_user (board_id, user_id, is_owner, is_admin)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO board_user (board_id, user_id, is_owner, is_admin, datetime_removed)
+            VALUES (?, ?, ?, ?, NULL)
             "#,
             board_id,
             user_id,
@@ -65,7 +76,7 @@ impl BoardUser {
         // Fetch the newly inserted board-user record
         let row = sqlx::query!(
             r#"
-            SELECT id, datetime_created, board_id, user_id, is_owner, is_admin
+            SELECT id, datetime_created, board_id, user_id, is_owner, is_admin, datetime_removed
             FROM board_user
             WHERE id = LAST_INSERT_ID()
             "#
@@ -81,12 +92,14 @@ impl BoardUser {
             user_id: row.user_id,
             is_owner: row.is_owner != 0, // i8 to bool conversion
             is_admin: row.is_admin != 0, // i8 to bool conversion
+            datetime_removed: row.datetime_removed, // Already Option<NaiveDateTime>
         })
     }
 
     /// Retrieves a `BoardUser` record by its `id`.
     ///
     /// This function queries the `board_user` table for a record matching the given `id`.
+    /// It also ensures that only active records (those where `datetime_removed` is `NULL`) are returned.
     ///
     /// # Arguments
     ///
@@ -103,9 +116,10 @@ impl BoardUser {
     ) -> Result<Option<BoardUser>, sqlx::error::Error> {
         let row = sqlx::query!(
             r#"
-            SELECT id, datetime_created, board_id, user_id, is_owner, is_admin
+            SELECT id, datetime_created, board_id, user_id, is_owner, is_admin, datetime_removed
             FROM board_user
             WHERE id = ?
+            AND datetime_removed IS NULL
             "#,
             id
         )
@@ -121,6 +135,7 @@ impl BoardUser {
                 user_id: row.user_id,
                 is_owner: row.is_owner != 0, // i8 to bool conversion
                 is_admin: row.is_admin != 0, // i8 to bool conversion
+                datetime_removed: row.datetime_removed, // Already Option<NaiveDateTime>
             }))
         } else {
             Ok(None)
@@ -130,6 +145,7 @@ impl BoardUser {
     /// Retrieves a `BoardUser` record by the `board_id` and `user_id`.
     ///
     /// This function queries the `board_user` table for a record matching the given `board_id` and `user_id`.
+    /// It ensures that the user has not been removed (i.e., `datetime_removed` is `NULL`).
     ///
     /// # Arguments
     ///
@@ -148,9 +164,10 @@ impl BoardUser {
     ) -> Result<Option<BoardUser>, sqlx::error::Error> {
         let row = sqlx::query!(
             r#"
-            SELECT id, datetime_created, board_id, user_id, is_owner, is_admin
+            SELECT id, datetime_created, board_id, user_id, is_owner, is_admin, datetime_removed
             FROM board_user
             WHERE board_id = ? AND user_id = ?
+            AND datetime_removed IS NULL
             "#,
             board_id,
             user_id
@@ -167,6 +184,7 @@ impl BoardUser {
                 user_id: row.user_id,
                 is_owner: row.is_owner != 0, // i8 to bool conversion
                 is_admin: row.is_admin != 0, // i8 to bool conversion
+                datetime_removed: row.datetime_removed, // Already Option<NaiveDateTime>
             }))
         } else {
             Ok(None)
@@ -177,8 +195,7 @@ impl BoardUser {
     ///
     /// This function queries the `board_user` table for all records matching the given `user_id`,
     /// and returns them as a vector of `BoardUser` records with the given page and per_page parameters.
-    ///
-    /// If no records are found for the `user_id`, an empty vector will be returned.
+    /// It ensures that only active records (those where `datetime_removed` is `NULL`) are returned.
     ///
     /// # Arguments
     ///
@@ -210,9 +227,10 @@ impl BoardUser {
         // Query to fetch the paginated results
         let rows = sqlx::query!(
             r#"
-        SELECT id, datetime_created, board_id, user_id, is_owner, is_admin
+        SELECT id, datetime_created, board_id, user_id, is_owner, is_admin, datetime_removed
         FROM board_user
         WHERE user_id = ?
+        AND datetime_removed IS NULL
         LIMIT ?
         OFFSET ?
         "#,
@@ -234,6 +252,7 @@ impl BoardUser {
                     user_id: row.user_id,
                     is_owner: row.is_owner != 0, // i8 to bool conversion
                     is_admin: row.is_admin != 0, // i8 to bool conversion
+                    datetime_removed: row.datetime_removed, // Already Option<NaiveDateTime>
                 }
             })
             .collect();
