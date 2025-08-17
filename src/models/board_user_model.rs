@@ -38,8 +38,7 @@ impl BoardUser {
     ///
     /// This function inserts a new row into the `board_user` table with the provided `board_id`,
     /// `user_id`, `is_owner`, and `is_admin` values. The boolean fields `is_owner` and `is_admin`
-    /// are converted to `i8` (`0` or `1`) for compatibility with MySQL. The `datetime_removed` field
-    /// will default to `NULL`, indicating the user is not removed from the board.
+    /// are converted to `i8` (`0` or `1`) for compatibility with MySQL.
     ///
     /// # Arguments
     ///
@@ -62,8 +61,8 @@ impl BoardUser {
         // Insert the new board-user record into the `board_user` table
         sqlx::query!(
             r#"
-            INSERT INTO board_user (board_id, user_id, is_owner, is_admin, datetime_removed)
-            VALUES (?, ?, ?, ?, NULL)
+            INSERT INTO board_user (board_id, user_id, is_owner, is_admin)
+            VALUES (?, ?, ?, ?)
             "#,
             board_id,
             user_id,
