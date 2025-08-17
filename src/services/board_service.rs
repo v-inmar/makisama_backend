@@ -1,3 +1,80 @@
+use sqlx::{MySql, Pool};
+use uuid::Uuid;
+
+use crate::{
+    handlers::board_handlers::add_board_handler::AddBoardRequestData,
+    models::{
+        board_description_model::BoardDescription, board_model::Board, board_name_model::BoardName,
+        board_pid_model::BoardPid, board_user_model::BoardUser,
+    },
+};
+
+pub async fn create_board(
+    pool: &Pool<MySql>,
+    user_id: u64,
+    data: &AddBoardRequestData,
+) -> Result<Board, Box<dyn std::error::Error>> {
+    let mut tx = pool.begin().await?;
+
+    // board pid
+    let board_pid: BoardPid;
+    let mut counter_pid = 0;
+    loop {
+        if counter_pid == 6 {
+            let err_msg = "Error while creating BoardPid. Try limit has been reached";
+            log::error!("{}", err_msg);
+            return Err(err_msg.into());
+        }
+
+        counter_pid += 1;
+        let mut uuid_str = String::new();
+        for _ in 0..4 {
+            uuid_str.push_str(&Uuid::new_v4().to_string().replace('-', ""));
+        }
+        let pid_value = &uuid_str[0..128]; // just to make sure it will fit inside mysql column value
+        match BoardPid::get_by_value(&pool, pid_value).await? {
+            Some(_) => continue,
+            None => {
+                board_pid = BoardPid::new(&mut tx, pid_value).await?;
+                break;
+            }
+        }
+    }
+
+    // board name
+    let board_name = match BoardName::get_by_value(&pool, &data.name).await? {
+        Some(bn) => bn,
+        None => BoardName::new(&mut tx, &data.name).await?,
+    };
+
+    // board description
+    let mut board_description: Option<BoardDescription> = None;
+
+    if let Some(description) = &data.description {
+        match BoardDescription::get_by_value(&pool, &description).await? {
+            Some(bd) => {
+                board_description = Some(bd);
+            }
+            None => {
+                board_description = Some(BoardDescription::new(&mut tx, &description).await?);
+            }
+        }
+    }
+
+    // Extract the description_id (if it exists) from board_description
+    let description_id = board_description.as_ref().map(|bd| bd.id);
+
+    // board
+    let board = Board::new(&mut tx, board_pid.id, board_name.id, description_id).await?;
+
+    // board user
+    BoardUser::new(&mut tx, board.id, user_id, true, true).await?;
+
+    tx.commit().await?;
+
+    Ok(board)
+}
+
 // use serde::{Deserialize, Serialize};
 // use sqlx::{MySql, Pool, Transaction};
 

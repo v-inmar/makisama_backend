@@ -88,4 +88,43 @@ impl BoardDescription {
 
         Ok(row)
     }
+
+    /// Retrieves a `BoardDescription` record by its `value`.
+    ///
+    /// This function queries the `board_description` table for a record matching the given `value`.
+    /// It returns the corresponding `BoardDescription` if found, or `None` if no matching record exists.
+    ///
+    /// # Arguments
+    ///
+    /// * `pool` - A reference to a MySQL connection pool used to execute the query.
+    /// * `value` - The `value` of the `BoardDescription` record to retrieve. This is the field in the
+    ///   `board_description` table that is queried for a match.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing either:
+    /// - `Some(BoardDescription)` if a matching record is found, or
+    /// - `None` if no record is found, or
+    /// - An error if the query fails.
+    ///
+    /// The `BoardDescription` struct will contain the `id`, `datetime_created`, and `value` fields from
+    /// the table.
+    pub async fn get_by_value(
+        pool: &Pool<MySql>,
+        value: &str,
+    ) -> Result<Option<BoardDescription>, sqlx::error::Error> {
+        let row = sqlx::query_as!(
+            BoardDescription,
+            r#"
+        SELECT id, datetime_created, value
+        FROM board_description
+        WHERE value = ?
+        "#,
+            value
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row)
+    }
 }

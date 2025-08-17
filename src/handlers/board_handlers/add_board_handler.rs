@@ -3,9 +3,9 @@ use actix_web::{HttpRequest, Responder, http::StatusCode, web};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
-use crate::models::user_auth_identity_model::AuthIdentity;
 use crate::models::board_model::Board;
 use crate::models::board_name_model::BoardName;
+use crate::models::user_auth_identity_model::AuthIdentity;
 use crate::models::user_model::User;
 use crate::services::board_service::create_board_service;
 use crate::utils::json_response_utils::JsonGeneralResponse;
@@ -15,6 +15,7 @@ use crate::utils::string_utils::is_first_character_underscore;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddBoardRequestData {
     pub name: String,
+    pub description: Option<String>,
 }
 
 pub async fn add_board(
