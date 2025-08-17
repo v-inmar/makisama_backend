@@ -20,7 +20,7 @@ CREATE TABLE board_description (
 CREATE TABLE board (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,  
     datetime_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,          
-    datetime_deleted DATETIME NULL,                       
+    datetime_deleted DATETIME DEFAULT NULL,                       
     pid_id BIGINT UNSIGNED NOT NULL UNIQUE,             
     name_id BIGINT UNSIGNED NOT NULL,            
     description_id BIGINT UNSIGNED NULL,     
@@ -38,7 +38,7 @@ CREATE TABLE board_user (
     user_id BIGINT UNSIGNED NOT NULL,  
     is_owner TINYINT(1) NOT NULL DEFAULT 0,  
     is_admin TINYINT(1) NOT NULL DEFAULT 0,
-    datetime_removed DATETIME NULL,  
+    datetime_removed DATETIME DEFAULT NULL,  
     PRIMARY KEY (id), 
     FOREIGN KEY (board_id) REFERENCES board(id),  
     FOREIGN KEY (user_id) REFERENCES user(id)  
