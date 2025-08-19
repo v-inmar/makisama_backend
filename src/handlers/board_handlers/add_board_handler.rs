@@ -31,7 +31,7 @@ pub async fn add_board(
 
     if let Some(desc) = json_data.description.clone() {
         if desc.len() > 10000 {
-            // restrict length to 10k characters, to avoid issues with encoding overflowing
+            // restrict length to 10k characters, to avoid issues with encoding overflow
             return JsonGeneralResponse::make_response(
                 &req,
                 &StatusCode::BAD_REQUEST,
