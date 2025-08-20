@@ -4,9 +4,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
 use crate::models::board_pid_model::BoardPid;
-use crate::models::user_auth_identity_model::UserAuthIdentity;
-use crate::models::user_model::User;
 use crate::services::board_service::create_board;
+use crate::utils::handler_utils;
 use crate::utils::json_response_utils::JsonGeneralResponse;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,9 +39,6 @@ pub async fn add_board(
         }
     }
 
-    /*
-       DOUBLE CHECK AUTHORIZATION
-    */
     // get user id from the req extension
     let at_sub = match req.extensions().get::<String>() {
         Some(sub) => sub.clone(),
@@ -56,8 +52,8 @@ pub async fn add_board(
         }
     };
 
-    // anything other than the auth identity object, something went wrong so return 500
-    let auth_identity = match UserAuthIdentity::get_by_value(&pool, &at_sub).await {
+    // get current user
+    let user = match handler_utils::get_user_by_auth_identity(&pool, &at_sub).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -69,32 +65,11 @@ pub async fn add_board(
         Ok(None) => {
             return JsonGeneralResponse::make_response(
                 &req,
-                &StatusCode::INTERNAL_SERVER_ERROR,
-                "Server error, try again later",
-            );
-        }
-        Ok(Some(ai)) => ai,
-    };
-
-    // get the user using auth identity
-    let user: User = match User::get_by_auth_identity_id(&pool, auth_identity.id).await {
-        Err(e) => {
-            log::error!("{}", e);
-            return JsonGeneralResponse::make_response(
-                &req,
-                &StatusCode::INTERNAL_SERVER_ERROR,
-                "Server error, try again later",
+                &StatusCode::UNAUTHORIZED,
+                "Access token is required",
             );
         }
         Ok(Some(u)) => u,
-        Ok(None) => {
-            log::error!("Unable to get user using auth id value");
-            return JsonGeneralResponse::make_response(
-                &req,
-                &StatusCode::INTERNAL_SERVER_ERROR,
-                "Server error, try again later",
-            );
-        }
     };
 
     // check if board name is already taken and in use

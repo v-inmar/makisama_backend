@@ -75,6 +75,24 @@ pub async fn create_board(
     Ok(board)
 }
 
+pub async fn update_board_datetime_delete(
+    pool: &Pool<MySql>,
+    board: &Board,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let mut tx = pool.begin().await?;
+
+    match board.update_datetime_deleted(&mut tx).await {
+        Err(e) => {
+            log::error!("{}", e);
+            return Err(e.into());
+        }
+        Ok(_) => {
+            tx.commit().await?;
+            Ok(true)
+        }
+    }
+}
+
 // use serde::{Deserialize, Serialize};
 // use sqlx::{MySql, Pool, Transaction};
 

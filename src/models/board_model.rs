@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use serde::Serialize;
 use sqlx::{FromRow, MySql, Pool, Transaction};
 
@@ -142,5 +142,24 @@ impl Board {
         .await?;
 
         Ok(row)
+    }
+
+    pub async fn update_datetime_deleted(
+        &self,
+        tx: &mut Transaction<'_, MySql>,
+    ) -> Result<(), sqlx::error::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE board
+            SET datetime_deleted = ?
+            WHERE id = ?
+            "#,
+            Utc::now(),
+            self.id
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(())
     }
 }
