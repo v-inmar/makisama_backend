@@ -5,16 +5,15 @@ use sqlx::MySqlPool;
 
 use crate::models::board_model::Board;
 use crate::models::board_name_model::BoardName;
-use crate::services::board_service::get_boards_by_userid_service;
+use crate::models::board_pid_model::BoardPid;
+use crate::models::board_user_model::BoardUser;
 use crate::utils::json_response_utils::{RequestDetails, StatusDetails};
 use crate::utils::{
     handler_utils::get_user_by_auth_identity, json_response_utils::JsonGeneralResponse,
 };
 
-use crate::models::board_member_model::BoardMember;
-
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UserBoard {
+pub struct GetBoardsResponseData {
     pub name: String,
     pub url: String,
     pub is_owner: bool,
@@ -25,7 +24,7 @@ pub struct UserBoard {
 pub struct GetBoardsResponse {
     pub request_details: RequestDetails,
     pub status_details: StatusDetails,
-    pub boards: Vec<UserBoard>,
+    pub boards: Vec<GetBoardsResponseData>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -39,8 +38,8 @@ pub async fn get_boards(
     pool: web::Data<MySqlPool>,
     query: web::Query<GetBoardsQueryParams>,
 ) -> impl Responder {
-    let page = query.page.unwrap_or(1) as i64;
-    let per_page = query.per_page.unwrap_or(10) as i64;
+    let page = query.page.unwrap_or(1) as u64;
+    let per_page = query.per_page.unwrap_or(10) as u64;
 
     // Get user from auth identity
     let at_sub = match req.extensions().get::<String>() {
@@ -88,56 +87,111 @@ pub async fn get_boards(
     //         Ok(Some(bms)) => bms,
     //     };
 
-    let mut user_boards: Vec<UserBoard> = Vec::new();
+    let mut boards: Vec<GetBoardsResponseData> = Vec::new();
 
-    match get_boards_by_userid_service(&pool, user.id, page, per_page).await {
+    match BoardUser::get_by_user_id(&pool, user.id, page, per_page).await {
         Err(e) => {
             log::error!("{}", e);
-            return JsonGeneralResponse::make_response(&req, &StatusCode::INTERNAL_SERVER_ERROR, "Server error, try again later.");
-        },
-        Ok(boards) => {
-            if boards.len() > 0 {
-                boards.iter()
-                .filter(|&&b| b.deleted.is_some())
-                .filter(|&&b| b.name_id.is_some() )
-                .filter(async move |&&b| BoardName::get_by_id(&pool, b.name_id).await.is_ok_and(|bn| bn.is_some()))
-                .map(async move |&b| {
-                    BoardName::get_by_id(&pool, b.name_id)
-                });
+            return JsonGeneralResponse::make_response(
+                &req,
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                "Server error, try again later.",
+            );
+        }
+        Ok(board_users) => {
+            for bu in board_users {
+                let mut gbrd = GetBoardsResponseData {
+                    is_admin: bu.is_admin,
+                    is_owner: bu.is_owner,
+                    name: String::new(),
+                    url: String::new(),
+                };
 
-
-                for board in boards {
-
-                    if board.deleted.is_some(){
+                // Get board data
+                match Board::get_by_id(&pool, bu.board_id).await {
+                    Err(e) => {
+                        log::error!("{}", e);
                         continue;
-                    }else{
-
-                        // get board name
-                        if let Some(name_id) = board.name_id{
-                            match BoardName::get_by_id(&pool, name_id).await{
-                                Err(e) => {
-                                    log::error!("{}", e);
-                                    continue;
-                                },
-                                Ok(None) => {
-                                    continue;
-                                },
-                                Ok(Some(board_name)) => {
-                                    let board_url = match req.url_for("get_board", &[&board_name.name]) {
-
-                                    }
-
-                                    req.url_for(name, elements).
-                                }
-                            }
+                    }
+                    Ok(None) => {
+                        log::error!("Board not found for board_id: {}", bu.board_id);
+                        continue;
+                    }
+                    Ok(Some(b)) => {
+                        // Name handling
+                        if let Ok(Some(bn)) = BoardName::get_by_id(&pool, b.name_id).await {
+                            gbrd.name = bn.value;
+                        } else {
+                            log::error!("Board name not found for board_id: {}", bu.board_id);
+                            continue;
                         }
-                        
 
+                        // PID handling and URL generation
+                        if let Ok(Some(bp)) = BoardPid::get_by_id(&pool, b.pid_id).await {
+                            gbrd.url = req.url_for("get_board", &[&bp.value]).map_or_else(
+                                |_| format!("/boards/{}", &bp.value).to_string(),
+                                |url| url.to_string(),
+                            );
+                        } else {
+                            log::error!("Board PID not found for board_id: {}", bu.board_id);
+                            continue;
+                        }
+
+                        boards.push(gbrd);
                     }
                 }
             }
         }
     }
+
+    // let mut user_boards: Vec<UserBoard> = Vec::new();
+
+    // match get_boards_by_userid_service(&pool, user.id, page, per_page).await {
+    //     Err(e) => {
+    //         log::error!("{}", e);
+    //         return JsonGeneralResponse::make_response(&req, &StatusCode::INTERNAL_SERVER_ERROR, "Server error, try again later.");
+    //     },
+    //     Ok(boards) => {
+    //         if boards.len() > 0 {
+    //             boards.iter()
+    //             .filter(|&&b| b.deleted.is_some())
+    //             .filter(|&&b| b.name_id.is_some() )
+    //             .filter(async move |&&b| BoardName::get_by_id(&pool, b.name_id).await.is_ok_and(|bn| bn.is_some()))
+    //             .map(async move |&b| {
+    //                 BoardName::get_by_id(&pool, b.name_id)
+    //             });
+
+    //             for board in boards {
+
+    //                 if board.deleted.is_some(){
+    //                     continue;
+    //                 }else{
+
+    //                     // get board name
+    //                     if let Some(name_id) = board.name_id{
+    //                         match BoardName::get_by_id(&pool, name_id).await{
+    //                             Err(e) => {
+    //                                 log::error!("{}", e);
+    //                                 continue;
+    //                             },
+    //                             Ok(None) => {
+    //                                 continue;
+    //                             },
+    //                             Ok(Some(board_name)) => {
+    //                                 let board_url = match req.url_for("get_board", &[&board_name.name]) {
+
+    //                                 }
+
+    //                                 req.url_for(name, elements).
+    //                             }
+    //                         }
+    //                     }
+
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     // if board_members.len() > 0 {
     //     for bm in board_members {
