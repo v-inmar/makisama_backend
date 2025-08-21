@@ -1,3 +1,4 @@
+use chrono::{Duration, Utc};
 use sqlx::{MySql, Pool};
 use uuid::Uuid;
 
@@ -171,35 +172,48 @@ pub async fn update_user_auth_identity_id(
     pool: &Pool<MySql>,
     user: &User,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut tx = pool.begin().await?;
+    // get the current auth identity
+    // so datetime_ttl can be set
+    if let Some(uai) = UserAuthIdentity::get_by_id(&pool, user.auth_identity_id).await? {
+        let mut tx = pool.begin().await?;
 
-    // -- auth identity
-    let user_auth_identity: UserAuthIdentity;
-    let mut counter = 0;
-    loop {
-        if counter == 6 {
-            let err_msg = "Error while creating UserAuthIdentity. Try limit has been reached";
-            log::error!("{}", err_msg);
-            return Err(err_msg.into());
-        }
+        // -- auth identity
+        let user_auth_identity: UserAuthIdentity;
+        let mut counter = 0;
+        loop {
+            if counter == 6 {
+                let err_msg = "Error while creating UserAuthIdentity. Try limit has been reached";
+                log::error!("{}", err_msg);
+                return Err(err_msg.into());
+            }
 
-        counter += 1;
-        let auth_identity_value = Uuid::new_v4().to_string(); // can be up to 36 chars long
-        match UserAuthIdentity::get_by_value(&pool, &auth_identity_value).await? {
-            Some(_) => continue,
-            None => {
-                user_auth_identity = UserAuthIdentity::new(&mut tx, &auth_identity_value).await?;
-                break;
+            counter += 1;
+            let auth_identity_value = Uuid::new_v4().to_string(); // can be up to 36 chars long
+            match UserAuthIdentity::get_by_value(&pool, &auth_identity_value).await? {
+                Some(_) => continue,
+                None => {
+                    user_auth_identity =
+                        UserAuthIdentity::new(&mut tx, &auth_identity_value).await?;
+                    break;
+                }
             }
         }
+
+        let ttl = Utc::now() + Duration::days(365);
+        let naive_ttl = ttl.naive_utc(); // Convert to NaiveDateTime
+        uai.update_ttl(&mut tx, &naive_ttl).await?;
+
+        user.update_auth_identity_id(&mut tx, user_auth_identity.id)
+            .await?;
+
+        tx.commit().await?;
+
+        Ok(())
+    } else {
+        let err_msg = "Error while retrieving the current UserAuthIdentity";
+        log::error!("{}", err_msg);
+        return Err(err_msg.into());
     }
-
-    user.update_auth_identity_id(&mut tx, user_auth_identity.id)
-        .await?;
-
-    tx.commit().await?;
-
-    Ok(())
 }
 
 // use chrono::{Duration, Utc};
