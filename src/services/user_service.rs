@@ -137,9 +137,13 @@ pub async fn create_user(
 
 /// Updates a user's authentication identity by generating a new `UserAuthIdentity` and associating it with the user.
 ///
-/// This method creates a new `UserAuthIdentity` (ensuring its uniqueness), and then updates the `auth_identity_id`
-/// of the given user with the new `UserAuthIdentity`. It wraps the operation in a database transaction to ensure
-/// atomicity. If the process of generating a unique `UserAuthIdentity` fails after several attempts, an error is returned.
+/// This method generates a new `UserAuthIdentity` (ensuring its uniqueness), and then updates the `auth_identity_id`
+/// of the given user with the newly created `UserAuthIdentity`. The operation is executed within a database transaction
+/// to ensure atomicity. If the system fails to generate a unique `UserAuthIdentity` after several attempts, an error
+/// is returned.
+///
+/// The TTL (time-to-live) for the user's authentication identity is set to one year from the current UTC time. The
+/// TTL is updated in the `UserAuthIdentity` record, and the user's `auth_identity_id` is updated accordingly.
 ///
 /// # Arguments
 ///
@@ -153,11 +157,12 @@ pub async fn create_user(
 ///
 /// # Behavior
 ///
-/// 1. The function attempts to generate a unique `UserAuthIdentity` ID (using a UUID) and ensures that the ID does not
+/// 1. The function attempts to generate a unique `UserAuthIdentity` ID using a UUID, ensuring the ID does not
 ///    already exist in the database by querying `UserAuthIdentity::get_by_value`.
 /// 2. If a unique `UserAuthIdentity` is found, it is created and associated with the user by updating their `auth_identity_id`.
-/// 3. The operation is wrapped in a transaction, ensuring atomicity.
-/// 4. If the system cannot generate a unique `UserAuthIdentity` after 6 attempts, it logs an error and returns a failure.
+/// 3. The TTL for the old `UserAuthIdentity` is set to one year from the current UTC time, and the TTL is stored as `NaiveDateTime`.
+/// 4. The operation is wrapped in a transaction, ensuring atomicity.
+/// 5. If the system cannot generate a unique `UserAuthIdentity` after 6 attempts, it logs an error and returns a failure.
 ///
 /// # Example
 ///
