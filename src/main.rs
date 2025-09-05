@@ -1,3 +1,4 @@
+use actix_cors::Cors;
 use actix_web::{
     App, HttpRequest, HttpServer,
     dev::{Service, ServiceResponse},
@@ -40,8 +41,16 @@ async fn main() -> std::io::Result<()> {
     };
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+        .allowed_origin("http://192.168.1.71:3000")
+        .allow_any_method()
+        .allow_any_header()
+        .supports_credentials();
+
+
         App::new()
             .wrap(Logger::default())
+            .wrap(cors)
             .app_data(web::Data::new(dbpool.pool.clone()))
             .service(
                 web::scope("/api")
@@ -136,7 +145,7 @@ async fn main() -> std::io::Result<()> {
                                     )),
                             )
                             .service(
-                                web::resource("/{id}")
+                                web::resource("/{pid}")
                                     .name("get_board") // resource name so it can be used in url_for
                                     .route(web::get().to(
                                         handlers::board_handlers::get_board_handler::get_board,

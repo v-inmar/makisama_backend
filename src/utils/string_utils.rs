@@ -3,18 +3,6 @@ use std::str::FromStr;
 use email_address::EmailAddress;
 use regex::Regex;
 
-pub fn is_alphanumeric_or_underscore(s: &str) -> bool {
-    s.chars().all(|c| c.is_alphanumeric() || c == '_')
-}
-
-pub fn is_first_character_underscore(s: &str) -> bool {
-    if let Some(c) = s.chars().next() {
-        c == '_'
-    } else {
-        false
-    }
-}
-
 /// Checks if the input string contains only alphabetic characters (A-Z, a-z).
 ///
 /// This function uses a regular expression to validate if the input string
@@ -34,11 +22,12 @@ pub fn is_first_character_underscore(s: &str) -> bool {
 /// # Example
 /// ```
 /// assert!(is_alphabet_only("Hello"));
+/// assert!(is_alphabet_only("hello"));
 /// assert!(!is_alphabet_only("Hello123"));
 /// assert!(!is_alphabet_only("Hello@World"));
 /// ```
 pub fn is_alphabet_only(s: &str) -> bool {
-    let re = match Regex::new(r"^a-zA-Z+$") {
+    let re = match Regex::new(r"^[a-zA-Z]+$") {
         Ok(regex) => regex,
         Err(_) => {
             log::error!("Failed to compile regex");

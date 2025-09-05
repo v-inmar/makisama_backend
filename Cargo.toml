@@ -24,3 +24,4 @@ futures-util = "0.3"
 email_address = "0.2.9"
 regex = "1.11.1"
 validator = { version = "0.20.0", features = ["derive"] }
+actix-cors = "0.7.1"

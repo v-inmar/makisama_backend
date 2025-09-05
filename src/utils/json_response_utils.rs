@@ -92,7 +92,8 @@ impl JsonJwtResponse {
         let refresh_cookie = CookieBuilder::new("refresh_token", refresh_token)
             .http_only(true)
             .secure(false) // TODO true on prod
-            .same_site(actix_web::cookie::SameSite::Strict)
+            //.same_site(actix_web::cookie::SameSite::Strict)
+            .same_site(actix_web::cookie::SameSite::Lax)
             .max_age(Duration::days(7))
             .path("/api/auth")
             .finish();

@@ -31,7 +31,7 @@ pub async fn create_board(
         for _ in 0..4 {
             uuid_str.push_str(&Uuid::new_v4().to_string().replace('-', ""));
         }
-        let pid_value = &uuid_str[0..128]; // just to make sure it will fit inside mysql column value
+        let pid_value = &uuid_str[0..64]; // just to make sure it will fit inside mysql column value
         match BoardPid::get_by_value(&pool, pid_value).await? {
             Some(_) => continue,
             None => {

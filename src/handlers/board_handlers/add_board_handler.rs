@@ -72,41 +72,10 @@ pub async fn add_board(
         Ok(Some(u)) => u,
     };
 
-    // check if board name is already taken and in use
-    // match BoardName::get_by_name(&pool, &name).await {
-    //     Err(e) => {
-    //         log::error!("{}", e);
-    //         return JsonGeneralResponse::make_response(
-    //             &req,
-    //             &StatusCode::INTERNAL_SERVER_ERROR,
-    //             "Server error, try again later",
-    //         );
-    //     }
-    //     Ok(Some(bn)) => match Board::get_by_name_id(&pool, bn.id).await {
-    //         Err(e) => {
-    //             log::error!("{}", e);
-    //             return JsonGeneralResponse::make_response(
-    //                 &req,
-    //                 &StatusCode::INTERNAL_SERVER_ERROR,
-    //                 "Server error, try again later",
-    //             );
-    //         }
-    //         Ok(Some(_)) => {
-    //             return JsonGeneralResponse::make_response(
-    //                 &req,
-    //                 &StatusCode::CONFLICT,
-    //                 "Name already in use",
-    //             );
-    //         }
-    //         Ok(None) => {}
-    //     },
-    //     Ok(None) => {}
-    // }
-
     // Call add new board service
     match create_board(&pool, user.id, &json_data).await {
         Err(e) => {
-            log::error!("{}", e);
+            log::error!("Unabel to create board. {}", e);
             return JsonGeneralResponse::make_response(
                 &req,
                 &StatusCode::INTERNAL_SERVER_ERROR,
@@ -115,7 +84,7 @@ pub async fn add_board(
         }
         Ok(board) => match BoardPid::get_by_id(&pool, board.pid_id).await {
             Err(e) => {
-                log::error!("{}", e);
+                log::error!("Unable to get  board pid. {}", e);
                 return JsonGeneralResponse::make_response(
                     &req,
                     &StatusCode::INTERNAL_SERVER_ERROR,

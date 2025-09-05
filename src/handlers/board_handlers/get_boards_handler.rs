@@ -1,5 +1,6 @@
 use actix_web::HttpResponse;
 use actix_web::{HttpMessage, HttpRequest, Responder, http::StatusCode, web};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 
@@ -18,6 +19,8 @@ pub struct GetBoardsResponseData {
     pub url: String,
     pub is_owner: bool,
     pub is_admin: bool,
+    pub pid: String,
+    pub datetime_created: NaiveDateTime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -100,12 +103,14 @@ pub async fn get_boards(
         }
         Ok(board_users) => {
             for bu in board_users {
-                let mut gbrd = GetBoardsResponseData {
-                    is_admin: bu.is_admin,
-                    is_owner: bu.is_owner,
-                    name: String::new(),
-                    url: String::new(),
-                };
+                // let mut gbrd = GetBoardsResponseData {
+                //     is_admin: bu.is_admin,
+                //     is_owner: bu.is_owner,
+                //     name: String::new(),
+                //     url: String::new(),
+                //     pid: String::new(),
+                //     datetime_created: DateTime::<Utc>::from_timestamp(1633024800, 0),
+                // };
 
                 // Get board data
                 match Board::get_by_id(&pool, bu.board_id).await {
@@ -118,9 +123,12 @@ pub async fn get_boards(
                         continue;
                     }
                     Ok(Some(b)) => {
+                        let name;
+                        let pid;
+                        let url;
                         // Name handling
                         if let Ok(Some(bn)) = BoardName::get_by_id(&pool, b.name_id).await {
-                            gbrd.name = bn.value;
+                            name = bn.value;
                         } else {
                             log::error!("Board name not found for board_id: {}", bu.board_id);
                             continue;
@@ -128,7 +136,8 @@ pub async fn get_boards(
 
                         // PID handling and URL generation
                         if let Ok(Some(bp)) = BoardPid::get_by_id(&pool, b.pid_id).await {
-                            gbrd.url = req.url_for("get_board", &[&bp.value]).map_or_else(
+                            pid = bp.value.clone();
+                            url = req.url_for("get_board", &[&bp.value]).map_or_else(
                                 |_| format!("/boards/{}", &bp.value).to_string(),
                                 |url| url.to_string(),
                             );
@@ -137,7 +146,14 @@ pub async fn get_boards(
                             continue;
                         }
 
-                        boards.push(gbrd);
+                        boards.push(GetBoardsResponseData {
+                            is_admin: bu.is_admin,
+                            is_owner: bu.is_owner,
+                            name: name,
+                            pid: pid,
+                            url: url,
+                            datetime_created: b.datetime_created,
+                        });
                     }
                 }
             }
