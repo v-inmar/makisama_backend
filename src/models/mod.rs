@@ -3,6 +3,7 @@ pub mod board_model;
 pub mod board_name_model;
 pub mod board_pid_model;
 pub mod board_user_model;
+pub mod organisation_model;
 pub mod organisation_pid_model;
 pub mod revoked_token_model;
 pub mod user_auth_identity_model;
