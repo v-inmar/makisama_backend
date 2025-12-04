@@ -41,6 +41,8 @@ async fn main() -> std::io::Result<()> {
     };
 
     HttpServer::new(move || {
+
+        // for testing - change for more secure options 
         let cors = Cors::default()
         .allowed_origin("http://192.168.1.71:3000")
         .allow_any_method()
@@ -53,7 +55,9 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .app_data(web::Data::new(dbpool.pool.clone()))
             .service(
+                // initial scope /api
                 web::scope("/api")
+
                     // simple middleware for changing 405 response into the unified json response
                     // This only check for response status 405, anything else, it will not change the response
                     .wrap_fn(|req, srv| {
@@ -80,6 +84,7 @@ async fn main() -> std::io::Result<()> {
                             res
                         })
                     })
+
                     // any missing json key/value pairs that are expected
                     .app_data(web::JsonConfig::default().error_handler(|err, req| {
                         let resp = JsonGeneralResponse::make_response(
@@ -89,6 +94,7 @@ async fn main() -> std::io::Result<()> {
                         );
                         InternalError::from_response(err, resp).into()
                     }))
+
                     // any missing form key/value pairs that are expected
                     .app_data(web::FormConfig::default().error_handler(|err, req| {
                         let resp = JsonGeneralResponse::make_response(
@@ -98,22 +104,38 @@ async fn main() -> std::io::Result<()> {
                         );
                         InternalError::from_response(err, resp).into()
                     }))
+
                     // any errors associated with query params before it reached the handler
                     .app_data(web::QueryConfig::default().error_handler(|err, req| {
                         let resp = JsonGeneralResponse::make_response(&req, &StatusCode::BAD_REQUEST, &err.to_string().clone());
                         InternalError::from_response(err, resp).into()
                     }))
+
+                    // services associated with /api scope
                     .service(
+
+                        // auth scope - /api/auth
                         web::scope("/auth")
+
+                            // login service - /api/auth/login
                             .service(web::resource("/login").route(
                                 web::post().to(handlers::auth_handlers::login_handler::login),
                             ))
+
+                            // register service - /api/auth/register
                             .service(web::resource("/register").route(
                                 web::post().to(handlers::auth_handlers::register_handler::register),
                             ))
                             .service(
+
+                                // empty scope, still corresponds to /api/auth
                                 web::scope("")
+
+                                    // auth middleware - check that any endpoint after this scope must be authenticated
+                                    // when calling a service
                                     .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+
+                                    // refresh token service - /api/auth/refresh
                                     .service(
                                         web::resource("/refresh").route(
                                             web::post().to(
@@ -121,6 +143,8 @@ async fn main() -> std::io::Result<()> {
                                             ),
                                         ),
                                     )
+
+                                    // logout service - /api/auth/logout
                                     .service(
                                         web::resource("/logout").route(
                                             web::post().to(
@@ -130,9 +154,17 @@ async fn main() -> std::io::Result<()> {
                                     ),
                             ),
                     )
+
+                    // services associated with /api scope
                     .service(
+
+                        // boards scope - /api/boards
                         web::scope("/boards")
+
+                            // auth middleware for protecting endpoints
                             .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+
+                            // corresponds to /api/boards - root of baords
                             .service(
                                 web::resource("")
                                     .route(
@@ -144,6 +176,8 @@ async fn main() -> std::io::Result<()> {
                                         handlers::board_handlers::get_boards_handler::get_boards,
                                     )),
                             )
+
+                            // service for single board - /api/boards/1234
                             .service(
                                 web::resource("/{pid}")
                                     .name("get_board") // resource name so it can be used in url_for
@@ -154,6 +188,8 @@ async fn main() -> std::io::Result<()> {
                             ),
                     ),
             )
+
+            // default service - not existent endpoints
             .default_service(web::route().to(|req: HttpRequest| async move {
                 JsonGeneralResponse::make_response(
                     &req,
