@@ -42,7 +42,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
 
-        // for testing - change for more secure options 
+        // for testing - change for more secure options in prod
         let cors = Cors::default()
         .allowed_origin("http://192.168.1.71:3000")
         .allow_any_method()
