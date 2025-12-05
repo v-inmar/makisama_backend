@@ -2,21 +2,33 @@ use actix_web::http::StatusCode;
 use actix_web::{HttpRequest, Responder, web};
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
+use validator::Validate;
 
-use crate::models::user_auth_identity_model::UserAuthIdentity;
-use crate::models::user_email_model::UserEmail;
-use crate::models::user_model::User;
-use crate::services::user_service::create_user;
+use crate::models::user_models::user_authid_model::UserAuthidModel;
+use crate::models::user_models::user_email_model::UserEmailModel;
+use crate::models::user_models::user_model::UserModel;
+use crate::services::user_service::UserService;
 use crate::utils::json_response_utils::{JsonGeneralResponse, JsonJwtResponse};
 use crate::utils::jwt_utils;
-use crate::utils::string_utils::{is_alphabet_only, is_email_format};
 
-#[derive(Debug, Deserialize, Serialize)]
+use crate::utils::custom_validation_utils::{validate_email, validate_name};
+
+// Data to be expected with the request
+#[derive(Debug, Deserialize, Serialize, Validate)]
 pub struct RegisterRequestData {
+    #[validate(custom(function = "validate_name"))]
     pub firstname: String,
+
+    #[validate(custom(function = "validate_name"))]
     pub lastname: String,
+
+    #[validate(custom(function = "validate_email"))]
     pub email: String,
+
+    #[validate(length(min = 8, max = 255))]
     pub password: String,
+
+    #[validate(length(min = 8, max = 255))]
     pub repeat: String,
 }
 
@@ -25,75 +37,31 @@ pub async fn register(
     pool: web::Data<MySqlPool>,
     json_data: web::Json<RegisterRequestData>,
 ) -> impl Responder {
-    // ---- Request Input Data Validation ----
+    // ------------------------------------------- Checking Request ----------------------------------------
 
-    // -- Use this for now but change it in the future for more robust validation
-    // validation
-    // firstname
-    if is_alphabet_only(&json_data.firstname) == false {
+    // validate the incoming data
+    match json_data.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            return JsonGeneralResponse::make_response(
+                &req,
+                &StatusCode::BAD_REQUEST,
+                &e.to_string().as_str(),
+            );
+        }
+    }
+
+    // check password == repeat
+    if json_data.password != json_data.repeat {
         return JsonGeneralResponse::make_response(
             &req,
             &StatusCode::BAD_REQUEST,
-            "Firstname must only contain Alphabet characters",
+            "Password and Repeat did not match",
         );
     }
 
-    if json_data.firstname.len() < 1 || json_data.firstname.len() > 64 {
-        return JsonGeneralResponse::make_response(
-            &req,
-            &StatusCode::BAD_REQUEST,
-            "Firstname lenght must be between 1 and 64 characters",
-        );
-    }
-
-    // lastname
-    if is_alphabet_only(&json_data.lastname) == false {
-        return JsonGeneralResponse::make_response(
-            &req,
-            &StatusCode::BAD_REQUEST,
-            "Lastname must only contain Alphabet characters",
-        );
-    }
-
-    if json_data.lastname.len() < 1 || json_data.lastname.len() > 64 {
-        return JsonGeneralResponse::make_response(
-            &req,
-            &StatusCode::BAD_REQUEST,
-            "Lastname lenght must be between 1 and 64 characters",
-        );
-    }
-
-    // email
-    if is_email_format(&json_data.email) == false {
-        return JsonGeneralResponse::make_response(
-            &req,
-            &StatusCode::BAD_REQUEST,
-            "Email address has an invalid format",
-        );
-    }
-
-    // password
-    if json_data.password.len() < 8 {
-        return JsonGeneralResponse::make_response(
-            &req,
-            &StatusCode::BAD_REQUEST,
-            "Password must be atleast 8 characters long",
-        );
-    }
-
-    // repeat password
-    if json_data.repeat != json_data.password {
-        return JsonGeneralResponse::make_response(
-            &req,
-            &StatusCode::BAD_REQUEST,
-            "Password did not match",
-        );
-    }
-
-    // ---- User Validation ----
-
-    // Check email
-    match UserEmail::get_by_value(&pool, &json_data.email.trim().to_lowercase()).await {
+    // check email if in use
+    match UserEmailModel::get_by_value(&pool, &json_data.email).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -103,8 +71,8 @@ pub async fn register(
             );
         }
         Ok(Some(ue)) => {
-            // Check if email is in use
-            match User::get_by_email_id(&pool, ue.id).await {
+            // email exist, chech if its in use
+            match UserModel::get_by_email_id(&pool, ue.id).await {
                 Err(e) => {
                     log::error!("{}", e);
                     return JsonGeneralResponse::make_response(
@@ -127,7 +95,8 @@ pub async fn register(
     }
 
     // ----- Create User -----
-    let user = match create_user(&pool, &json_data).await {
+
+    let user_obj = match UserService::create_user(&pool, &json_data).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -136,13 +105,14 @@ pub async fn register(
                 "Server error, try again later",
             );
         }
-        Ok(u) => u,
+        Ok(user) => user,
     };
 
-    // ----- Create JWTokens -------
+    // --------------------------------- Making the Response --------------------------------
 
+    // ----- Create JWTokens -------
     // get auth id
-    let user_ath_identity = match UserAuthIdentity::get_by_id(&pool, user.auth_identity_id).await {
+    let user_authid_obj = match UserAuthidModel::get_by_id(&pool, user_obj.authid_id).await {
         Err(e) => {
             log::error!("{}", e);
             return JsonGeneralResponse::make_response(
@@ -154,7 +124,7 @@ pub async fn register(
         Ok(None) => {
             log::error!(
                 "Unable to get user auth identity id from newly created user. user id: {}",
-                user.id
+                user_obj.id
             );
             return JsonGeneralResponse::make_response(
                 &req,
@@ -162,11 +132,11 @@ pub async fn register(
                 "Server error, try again later",
             );
         }
-        Ok(Some(uai)) => uai,
+        Ok(Some(uam)) => uam,
     };
 
-    // generate tokens
-    let access_token = match jwt_utils::generate_access_token(&user_ath_identity.value) {
+    // generate access tokens
+    let access_token = match jwt_utils::generate_access_token(&user_authid_obj.value) {
         Ok(token) => token,
         Err(e) => {
             log::error!(
@@ -181,7 +151,8 @@ pub async fn register(
         }
     };
 
-    let refresh_token = match jwt_utils::generate_refresh_token(&user_ath_identity.value) {
+    // generate refresh token
+    let refresh_token = match jwt_utils::generate_refresh_token(&user_authid_obj.value) {
         Ok(token) => token,
         Err(e) => {
             log::error!(

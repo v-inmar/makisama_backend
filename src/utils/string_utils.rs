@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use email_address::EmailAddress;
+use rand::{Rng, distr::Alphanumeric};
 use regex::Regex;
 
 /// Checks if the input string contains only alphabetic characters (A-Z, a-z).
@@ -61,4 +62,12 @@ pub fn is_alphabet_only(s: &str) -> bool {
 /// ```
 pub fn is_email_format(email: &str) -> bool {
     return EmailAddress::from_str(email).is_ok();
+}
+
+pub fn random_alphanumeric(length: usize) -> String {
+    rand::rng() // use a random generator
+        .sample_iter(&Alphanumeric) // use alphanumeric distribution
+        .take(length) // limit
+        .map(|b| char::from(b)) // converts byte into char
+        .collect() // into String
 }

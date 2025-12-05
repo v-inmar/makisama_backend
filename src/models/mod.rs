@@ -12,3 +12,5 @@ pub mod user_firstname_model;
 pub mod user_lastname_model;
 pub mod user_model;
 pub mod user_pid_model;
+
+pub mod user_models;
