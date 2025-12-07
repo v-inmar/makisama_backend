@@ -14,6 +14,7 @@ use std::env;
 
 use crate::utils::json_response_utils::JsonGeneralResponse;
 
+mod constants;
 mod handlers;
 mod middlewares;
 mod models;

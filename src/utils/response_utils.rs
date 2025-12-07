@@ -1,6 +1,5 @@
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
-use actix_web::cookie::Cookie;
 use actix_web::cookie::CookieBuilder;
 use actix_web::cookie::time::Duration;
 use actix_web::http::StatusCode;

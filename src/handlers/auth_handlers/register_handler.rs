@@ -14,23 +14,23 @@ use crate::utils::jwt_utils;
 use crate::utils::custom_validation_utils::{validate_email, validate_name};
 
 // Data to be expected with the request
-#[derive(Debug, Deserialize, Serialize, Validate)]
-pub struct RegisterRequestData {
-    #[validate(custom(function = "validate_name"))]
-    pub firstname: String,
+// #[derive(Debug, Deserialize, Serialize, Validate)]
+// pub struct RegisterRequestData {
+//     #[validate(custom(function = "validate_name"))]
+//     pub firstname: String,
 
-    #[validate(custom(function = "validate_name"))]
-    pub lastname: String,
+//     #[validate(custom(function = "validate_name"))]
+//     pub lastname: String,
 
-    #[validate(custom(function = "validate_email"))]
-    pub email: String,
+//     #[validate(custom(function = "validate_email"))]
+//     pub email: String,
 
-    #[validate(length(min = 8, max = 255))]
-    pub password: String,
+//     #[validate(length(min = 8, max = 255))]
+//     pub password: String,
 
-    #[validate(length(min = 8, max = 255))]
-    pub repeat: String,
-}
+//     #[validate(length(min = 8, max = 255))]
+//     pub repeat: String,
+// }
 
 pub async fn register(
     req: HttpRequest,
