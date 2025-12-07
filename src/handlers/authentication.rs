@@ -303,4 +303,12 @@ impl Authentication {
             &refresh_token,
         );
     }
+
+    pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Responder {
+        return ResponseMaker::general_response(&req, &StatusCode::OK, "Ok logout");
+    }
+
+    pub async fn refresh(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Responder {
+        return ResponseMaker::general_response(&req, &StatusCode::OK, "Ok refresh");
+    }
 }

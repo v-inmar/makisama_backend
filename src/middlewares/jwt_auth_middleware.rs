@@ -12,9 +12,10 @@ use actix_web::{
 
 use futures_util::future::LocalBoxFuture;
 
+use crate::constants;
 use crate::utils::header_utils::RequestHeader;
-use crate::utils::json_response_utils::JsonGeneralResponse;
 use crate::utils::jwt_utils::{decode_access_token, decode_access_token_no_validation_exp};
+use crate::utils::response_utils::ResponseMaker;
 
 pub struct AuthRequired {}
 
@@ -51,41 +52,48 @@ where
         self.service.poll_ready(ctx)
     }
 
-    fn call(&self, req: ServiceRequest) -> Self::Future {
+    fn call(&self, serv_req: ServiceRequest) -> Self::Future {
         let service = Rc::clone(&self.service);
 
         // get the authorization header value
-        let access_token = match req.get_header_value("authorization") {
+        let access_token = match serv_req.get_header_value("authorization") {
             Err(e) => {
                 log::error!("{}", e);
 
-                let resp = JsonGeneralResponse::make_response(
-                    &req.request(),
+                let resp = ResponseMaker::general_response(
+                    &serv_req.request(),
                     &StatusCode::INTERNAL_SERVER_ERROR,
-                    "Server error, try again later",
+                    constants::INTERNAL_SERVER_ERROR_MSG,
                 );
-                return Box::pin(async move { Ok(req.into_response(resp.map_into_boxed_body())) });
+
+                return Box::pin(
+                    async move { Ok(serv_req.into_response(resp.map_into_boxed_body())) },
+                );
             }
             Ok(None) => {
-                let resp = JsonGeneralResponse::make_response(
-                    &req.request(),
+                let resp = ResponseMaker::general_response(
+                    &serv_req.request(),
                     &StatusCode::UNAUTHORIZED,
                     "Access token is required",
                 );
-                return Box::pin(async move { Ok(req.into_response(resp.map_into_boxed_body())) });
+
+                return Box::pin(
+                    async move { Ok(serv_req.into_response(resp.map_into_boxed_body())) },
+                );
             }
             Ok(Some(auth_header_value)) => {
                 if let Some(at) = auth_header_value.strip_prefix("Bearer ") {
                     at.to_string()
                 } else {
-                    let resp = JsonGeneralResponse::make_response(
-                        &req.request(),
+                    let resp = ResponseMaker::general_response(
+                        &serv_req.request(),
                         &StatusCode::UNAUTHORIZED,
                         "Invalid authorization format. Expected 'Bearer <token>'",
                     );
-                    return Box::pin(
-                        async move { Ok(req.into_response(resp.map_into_boxed_body())) },
-                    );
+
+                    return Box::pin(async move {
+                        Ok(serv_req.into_response(resp.map_into_boxed_body()))
+                    });
                 }
             }
         };
@@ -94,24 +102,24 @@ where
         let token_data = match decode_access_token(&access_token) {
             Err(e) => {
                 // check if path is refresh endpoint
-                if req.path().eq_ignore_ascii_case("/api/auth/refresh")
+                if serv_req.path().eq_ignore_ascii_case("/api/auth/refresh")
                     && e.to_string().eq_ignore_ascii_case("expiredsignature")
                 {
                     match decode_access_token_no_validation_exp(&access_token) {
                         Err(er) => {
                             log::error!("{}", er);
-                            let resp = JsonGeneralResponse::make_response(
-                                &req.request(),
+                            let resp = ResponseMaker::general_response(
+                                &serv_req.request(),
                                 &StatusCode::INTERNAL_SERVER_ERROR,
-                                "Server error, try again later.",
+                                constants::INTERNAL_SERVER_ERROR_MSG,
                             );
 
                             return Box::pin(async move {
-                                Ok(req.into_response(resp.map_into_boxed_body()))
+                                Ok(serv_req.into_response(resp.map_into_boxed_body()))
                             });
                         }
                         Ok(td) => {
-                            return _let_through(service, req, &td.claims.sub);
+                            return _let_through(service, serv_req, &td.claims.sub);
                         }
                     }
                 } else if e.to_string().eq_ignore_ascii_case("expiredsignature")
@@ -120,31 +128,39 @@ where
                     || e.to_string().starts_with("Base64")
                 {
                     let msg = format!("Access token {}", e);
-                    let resp = JsonGeneralResponse::make_response(
-                        &req.request(),
+
+                    let resp = ResponseMaker::general_response(
+                        &serv_req.request(),
                         &StatusCode::UNAUTHORIZED,
                         &msg,
                     );
-                    return Box::pin(
-                        async move { Ok(req.into_response(resp.map_into_boxed_body())) },
-                    );
+
+                    // let resp = JsonGeneralResponse::make_response(
+                    //     &serv_req.request(),
+                    //     &StatusCode::UNAUTHORIZED,
+                    //     &msg,
+                    // );
+                    return Box::pin(async move {
+                        Ok(serv_req.into_response(resp.map_into_boxed_body()))
+                    });
                 } else {
                     log::error!("{}", e);
-                    let resp = JsonGeneralResponse::make_response(
-                        &req.request(),
+
+                    let resp = ResponseMaker::general_response(
+                        &serv_req.request(),
                         &StatusCode::INTERNAL_SERVER_ERROR,
-                        "Server error, try again later.",
+                        constants::INTERNAL_SERVER_ERROR_MSG,
                     );
 
-                    return Box::pin(
-                        async move { Ok(req.into_response(resp.map_into_boxed_body())) },
-                    );
+                    return Box::pin(async move {
+                        Ok(serv_req.into_response(resp.map_into_boxed_body()))
+                    });
                 }
             }
             Ok(token_data) => token_data,
         };
 
-        _let_through(service, req, &token_data.claims.sub)
+        _let_through(service, serv_req, &token_data.claims.sub)
 
         // insert claimsub (user's auth identity) into request extension
         // req.extensions_mut().insert(token_data.claims.sub.clone());
