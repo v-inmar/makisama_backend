@@ -45,7 +45,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         // for testing - change for more secure options in prod
         let cors = Cors::default()
-            .allowed_origin("*") // for testing only
+            .send_wildcard() // for testing only
+            // .allowed_origin("*")
             .allow_any_method()
             .allow_any_header()
             .supports_credentials();
