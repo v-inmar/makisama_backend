@@ -7,6 +7,8 @@ use actix_web::http::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::constants;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestDetails {
     pub path: String,
@@ -41,6 +43,15 @@ impl ResponseMaker {
             status_details: _get_status_details(&code),
             payload,
         });
+    }
+
+    // Responding with 500 error is very common - this function is for convinience
+    pub fn respond_with_server_error(req: &HttpRequest) -> HttpResponse {
+        return ResponseMaker::general_response(
+            &req,
+            &StatusCode::INTERNAL_SERVER_ERROR,
+            constants::INTERNAL_SERVER_ERROR_MSG,
+        );
     }
 
     pub fn jwt_response(

@@ -1,18 +1,20 @@
 use chrono::NaiveDateTime;
-use sqlx::{MySql, Pool};
+use sqlx::MySql;
+use sqlx::Pool;
 
-use crate::models::revoked_token_model::RevokedToken;
+use crate::models::revoked_token_models::revoked_token_model::RevokedTokenModel;
 
-pub async fn revoke_user_refresh_token(
-    pool: &Pool<MySql>,
-    token: &str,
-    datetime_ttl: &NaiveDateTime,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut tx = pool.begin().await?;
+pub struct AuthService {}
 
-    RevokedToken::new(&mut tx, token, datetime_ttl).await?;
-
-    tx.commit().await?;
-
-    Ok(())
+impl AuthService {
+    pub async fn create_revoked(
+        pool: &Pool<MySql>,
+        token: &str,
+        datetime_ttl: &NaiveDateTime,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut tx = pool.begin().await?;
+        RevokedTokenModel::new(&mut tx, token, datetime_ttl).await?;
+        tx.commit().await?;
+        Ok(())
+    }
 }

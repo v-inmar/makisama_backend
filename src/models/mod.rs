@@ -13,4 +13,5 @@
 // pub mod user_model;
 // pub mod user_pid_model;
 
+pub mod revoked_token_models;
 pub mod user_models;

@@ -1,18 +1,20 @@
 use actix_cors::Cors;
-use actix_web::{
-    App, HttpRequest, HttpServer,
-    dev::{Service, ServiceResponse},
-    error::InternalError,
-    http::StatusCode,
-    middleware::Logger,
-    web::{self},
-};
+use actix_web::App;
+use actix_web::HttpRequest;
+use actix_web::HttpServer;
+
+use actix_web::dev::Service;
+use actix_web::dev::ServiceResponse;
+use actix_web::error::InternalError;
+use actix_web::http::StatusCode;
+use actix_web::middleware::Logger;
+use actix_web::web::{self};
+
 use dotenvy::dotenv;
 use futures_util::FutureExt;
 
 use std::env;
 
-// use crate::utils::json_response_utils::JsonGeneralResponse;
 use crate::utils::response_utils::ResponseMaker;
 
 mod constants;
@@ -29,6 +31,13 @@ async fn main() -> std::io::Result<()> {
 
     // load .env file
     dotenv().ok();
+
+    // get host and port from .env
+    let host = env::var("SERVER_HOST").unwrap_or("0.0.0.0".to_string());
+    let port: u16 = env::var("SERVER_PORT")
+        .unwrap_or("5000".to_string())
+        .parse()
+        .expect("PORT must be a valid u16");
 
     // set and test database
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -137,11 +146,11 @@ async fn main() -> std::io::Result<()> {
                         web::scope("/auth")
                             // login service - /api/auth/login
                             .service(web::resource("/login").route(
-                                web::post().to(handlers::authentication::Authentication::login),
+                                web::post().to(handlers::auth_handlers::Authentication::login),
                             ))
                             // register service - /api/auth/register
                             .service(web::resource("/register").route(
-                                web::post().to(handlers::authentication::Authentication::register),
+                                web::post().to(handlers::auth_handlers::Authentication::register),
                             ))
                             .service(
                                 // empty scope, still corresponds to /api/auth
@@ -153,7 +162,7 @@ async fn main() -> std::io::Result<()> {
                                     .service(
                                         web::resource("/refresh").route(
                                             web::post().to(
-                                                handlers::authentication::Authentication::refresh,
+                                                handlers::auth_handlers::Authentication::refresh,
                                             ),
                                         ),
                                     )
@@ -161,7 +170,7 @@ async fn main() -> std::io::Result<()> {
                                     .service(
                                         web::resource("/logout").route(
                                             web::post().to(
-                                                handlers::authentication::Authentication::logout,
+                                                handlers::auth_handlers::Authentication::logout,
                                             ),
                                         ),
                                     ),
@@ -213,7 +222,7 @@ async fn main() -> std::io::Result<()> {
                 // )
             }))
     })
-    .bind(("0.0.0.0", 5000))?
+    .bind((host, port))?
     .run()
     .await
 }

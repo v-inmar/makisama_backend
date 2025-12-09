@@ -1,4 +1,4 @@
-use crate::handlers::authentication::RegisterRequestData;
+use crate::handlers::auth_handlers::RegisterRequestData;
 use crate::models::user_models::user_authid_model::UserAuthidModel;
 use crate::models::user_models::user_email_model::UserEmailModel;
 use crate::models::user_models::user_model::UserModel;
