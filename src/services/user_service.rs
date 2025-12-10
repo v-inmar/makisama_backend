@@ -1,4 +1,4 @@
-use crate::handlers::auth_handlers::RegisterRequestData;
+use crate::dtos::register_dto::RegisterRequestData;
 use crate::models::user_models::user_authid_model::UserAuthidModel;
 use crate::models::user_models::user_email_model::UserEmailModel;
 use crate::models::user_models::user_model::UserModel;
@@ -112,5 +112,43 @@ impl UserService {
         tx.commit().await?;
 
         Ok(user_obj)
+    }
+
+    pub async fn update_user_authid(
+        pool: &Pool<MySql>,
+        user: &mut UserModel,
+    ) -> Result<UserAuthidModel, Box<dyn std::error::Error>> {
+        // create transaction instance
+        let mut tx = pool.begin().await?;
+
+        // create authid
+        let user_authid_obj: UserAuthidModel;
+        let mut authid_counter: i32 = 0;
+        loop {
+            // will only try 5 times
+            if authid_counter == 5 {
+                let err_msg = String::from(
+                    "Error while creating UserAuthidModel. Try limit has been reached",
+                );
+                log::error!("{}", err_msg);
+                return Err(err_msg.into());
+            }
+
+            authid_counter += 1;
+            let authid_value = random_alphanumeric(32);
+            match UserAuthidModel::get_by_value(&pool, &authid_value).await? {
+                Some(_) => continue,
+                None => {
+                    user_authid_obj = UserAuthidModel::new(&mut tx, &authid_value).await?;
+                    break;
+                }
+            }
+        }
+
+        user.authid_id = user_authid_obj.id;
+
+        tx.commit().await?;
+
+        Ok(user_authid_obj)
     }
 }

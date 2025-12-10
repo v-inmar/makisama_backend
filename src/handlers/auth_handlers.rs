@@ -1,17 +1,15 @@
 use actix_web::HttpMessage;
 use actix_web::HttpRequest;
 use actix_web::Responder;
+use actix_web::Scope;
 use actix_web::http::StatusCode;
 use actix_web::web;
 
 use chrono::DateTime;
-
 use chrono::Duration;
+
 use jsonwebtoken::TokenData;
 use sqlx::MySqlPool;
-
-use serde::Deserialize;
-use serde::Serialize;
 
 use validator::Validate;
 
@@ -23,8 +21,6 @@ use crate::models::user_models::user_model::UserModel;
 use crate::services::auth_service::AuthService;
 use crate::services::user_service::UserService;
 use crate::utils::bcrypt_utils::is_matched;
-use crate::utils::custom_validation_utils::validate_email;
-use crate::utils::custom_validation_utils::validate_name;
 
 use crate::utils::jwt_utils::Claims;
 use crate::utils::jwt_utils::decode_refresh_token;
@@ -32,28 +28,25 @@ use crate::utils::jwt_utils::generate_access_token;
 use crate::utils::jwt_utils::generate_refresh_token;
 use crate::utils::response_utils::ResponseMaker;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LoginRequestData {
-    pub email: String,
-    pub password: String,
-}
+use crate::middlewares::jwt_auth_middleware::AuthRequired;
 
-#[derive(Debug, Deserialize, Serialize, Validate)]
-pub struct RegisterRequestData {
-    #[validate(custom(function = "validate_name"))]
-    pub firstname: String,
+use crate::dtos::login_dto::LoginRequestData;
+use crate::dtos::register_dto::RegisterRequestData;
 
-    #[validate(custom(function = "validate_name"))]
-    pub lastname: String,
-
-    #[validate(custom(function = "validate_email"))]
-    pub email: String,
-
-    #[validate(length(min = 8, max = 255))]
-    pub password: String,
-
-    #[validate(length(min = 8, max = 255))]
-    pub repeat: String,
+pub fn scopes() -> Scope {
+    web::scope("/auth")
+        .route("/login", web::post().to(Authentication::login))
+        .route("/register", web::post().to(Authentication::register))
+        .route(
+            "/logout",
+            web::post().to(Authentication::logout).wrap(AuthRequired {}),
+        )
+        .route(
+            "/refresh",
+            web::post()
+                .to(Authentication::refresh)
+                .wrap(AuthRequired {}),
+        )
 }
 
 pub struct Authentication {}
@@ -275,7 +268,129 @@ impl Authentication {
     }
 
     pub async fn logout(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Responder {
-        return ResponseMaker::general_response(&req, &StatusCode::OK, "Ok logout");
+        /*
+            - Get the authid from access token - auth middleware already takes care of decoding the access token
+            - Get the refresh token from cookie
+                - check that it is not in db yet
+                - decode the refresh token to get TokenData<Claim>
+            - Compare and make sure that access token authid == refresh token authid
+                - revoke the refresh token
+
+            - For security purposes, if access token authid != refresh token authid
+                - change the user's authid
+                    - will trigger a 'logout on all devices' since it will invalidate all the user's tokens from all devices
+        */
+
+        // get access token
+        // At this point, req extension is sub (authid)
+        let access_token_authid_value: String = match req.extensions().get::<String>() {
+            Some(sub) => sub.clone(),
+            None => {
+                return ResponseMaker::respond_with_server_error(&req);
+            }
+        };
+
+        // get cookie
+        if let Some(cookie) = req.cookie("refresh_token") {
+            match RevokedTokenModel::get_by_value(&pool, &cookie.value()).await {
+                Err(e) => {
+                    log::error!("{}", e);
+                    return ResponseMaker::respond_with_server_error(&req);
+                }
+                Ok(Some(_)) => {
+                    // refresh token is already in database
+                    return ResponseMaker::general_response(
+                        &req,
+                        &StatusCode::OK,
+                        "Logout successful",
+                    );
+                }
+                Ok(None) => {}
+            }
+
+            match decode_refresh_token(&cookie.value()) {
+                Ok(token_data) => {
+                    // make sure that the user actually owns the refresh token
+                    // this should prevent authenticated users from using fake refresh token
+
+                    if access_token_authid_value.eq_ignore_ascii_case(&token_data.claims.sub) {
+                        // grab the refresh token exp datetime and add 7 days as revoked token ttl
+                        if let Some(dt) = DateTime::from_timestamp(token_data.claims.exp, 0) {
+                            let ttl = dt + Duration::days(7);
+
+                            match AuthService::create_revoked(
+                                &pool,
+                                cookie.value(),
+                                &ttl.naive_utc(),
+                            )
+                            .await
+                            {
+                                Err(e) => {
+                                    log::error!("{}", e); // let this fall through to the end to change authid value
+                                }
+                                Ok(_) => {
+                                    return ResponseMaker::general_response(
+                                        &req,
+                                        &StatusCode::OK,
+                                        "Logout successful",
+                                    );
+                                }
+                            }
+                        } else {
+                            // issue with datetime
+                            return ResponseMaker::respond_with_server_error(&req);
+                        }
+                    } // access token authid value did not match refresh token authid value, let it fall through to change authid value
+                }
+                Err(e) => {
+                    log::error!("{}", e); // still revoke this token to stop further reuse, just in case
+                }
+            }
+        } // on else - means no refresh token in cookie, let it fall through to end to change authid value of the user
+
+        // Change auth id for security purposes since we can't revoked the refresh token
+        // this will basically logout the user on all devices
+
+        let user_authid =
+            match UserAuthidModel::get_by_value(&pool, &access_token_authid_value).await {
+                Err(e) => {
+                    log::error!("{}", e);
+                    return ResponseMaker::respond_with_server_error(&req);
+                }
+                Ok(None) => {
+                    return ResponseMaker::general_response(
+                        &req,
+                        &StatusCode::UNAUTHORIZED,
+                        "Must be authenticated",
+                    );
+                }
+                Ok(Some(o)) => o,
+            };
+
+        let mut user = match UserModel::get_by_authid_id(&pool, user_authid.id).await {
+            Err(e) => {
+                log::error!("{}", e);
+                return ResponseMaker::respond_with_server_error(&req);
+            }
+            Ok(None) => {
+                return ResponseMaker::general_response(
+                    &req,
+                    &StatusCode::UNAUTHORIZED,
+                    "Must be authenticated",
+                );
+            }
+            Ok(Some(o)) => o,
+        };
+
+        match UserService::update_user_authid(&pool, &mut user).await {
+            Err(e) => {
+                log::error!("{}", e);
+                return ResponseMaker::respond_with_server_error(&req);
+            }
+            Ok(_) => {
+                return ResponseMaker::general_response(&req, &StatusCode::OK, "Logout successful");
+            }
+        };
     }
 
     pub async fn refresh(req: HttpRequest, pool: web::Data<MySqlPool>) -> impl Responder {

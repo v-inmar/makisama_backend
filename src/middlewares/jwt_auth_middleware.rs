@@ -12,7 +12,6 @@ use actix_web::{
 
 use futures_util::future::LocalBoxFuture;
 
-use crate::constants;
 use crate::utils::header_utils::RequestHeader;
 use crate::utils::jwt_utils::{decode_access_token, decode_access_token_no_validation_exp};
 use crate::utils::response_utils::ResponseMaker;
@@ -60,11 +59,8 @@ where
             Err(e) => {
                 log::error!("{}", e);
 
-                let resp = ResponseMaker::general_response(
-                    &serv_req.request(),
-                    &StatusCode::INTERNAL_SERVER_ERROR,
-                    constants::INTERNAL_SERVER_ERROR_MSG,
-                );
+                let resp: actix_web::HttpResponse =
+                    ResponseMaker::respond_with_server_error(&serv_req.request());
 
                 return Box::pin(
                     async move { Ok(serv_req.into_response(resp.map_into_boxed_body())) },
@@ -108,11 +104,8 @@ where
                     match decode_access_token_no_validation_exp(&access_token) {
                         Err(er) => {
                             log::error!("{}", er);
-                            let resp = ResponseMaker::general_response(
-                                &serv_req.request(),
-                                &StatusCode::INTERNAL_SERVER_ERROR,
-                                constants::INTERNAL_SERVER_ERROR_MSG,
-                            );
+                            let resp =
+                                ResponseMaker::respond_with_server_error(&serv_req.request());
 
                             return Box::pin(async move {
                                 Ok(serv_req.into_response(resp.map_into_boxed_body()))
@@ -146,11 +139,7 @@ where
                 } else {
                     log::error!("{}", e);
 
-                    let resp = ResponseMaker::general_response(
-                        &serv_req.request(),
-                        &StatusCode::INTERNAL_SERVER_ERROR,
-                        constants::INTERNAL_SERVER_ERROR_MSG,
-                    );
+                    let resp = ResponseMaker::respond_with_server_error(&serv_req.request());
 
                     return Box::pin(async move {
                         Ok(serv_req.into_response(resp.map_into_boxed_body()))

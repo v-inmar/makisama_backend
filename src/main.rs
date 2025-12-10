@@ -18,6 +18,7 @@ use std::env;
 use crate::utils::response_utils::ResponseMaker;
 
 mod constants;
+mod dtos;
 mod handlers;
 mod middlewares;
 mod models;
@@ -142,39 +143,39 @@ async fn main() -> std::io::Result<()> {
                     }))
                     // services associated with /api scope
                     .service(
-                        // auth scope - /api/auth
-                        web::scope("/auth")
-                            // login service - /api/auth/login
-                            .service(web::resource("/login").route(
-                                web::post().to(handlers::auth_handlers::Authentication::login),
-                            ))
-                            // register service - /api/auth/register
-                            .service(web::resource("/register").route(
-                                web::post().to(handlers::auth_handlers::Authentication::register),
-                            ))
-                            .service(
-                                // empty scope, still corresponds to /api/auth
-                                web::scope("")
-                                    // auth middleware - check that any endpoint after this scope must be authenticated
-                                    // when calling a service
-                                    .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
-                                    // refresh token service - /api/auth/refresh
-                                    .service(
-                                        web::resource("/refresh").route(
-                                            web::post().to(
-                                                handlers::auth_handlers::Authentication::refresh,
-                                            ),
-                                        ),
-                                    )
-                                    // logout service - /api/auth/logout
-                                    .service(
-                                        web::resource("/logout").route(
-                                            web::post().to(
-                                                handlers::auth_handlers::Authentication::logout,
-                                            ),
-                                        ),
-                                    ),
-                            ),
+                        handlers::auth_handlers::scopes(), // auth scope - /api/auth
+                                                           // web::scope("/auth")
+                                                           //     // login service - /api/auth/login
+                                                           //     .service(web::resource("/login").route(
+                                                           //         web::post().to(handlers::auth_handlers::Authentication::login),
+                                                           //     ))
+                                                           //     // register service - /api/auth/register
+                                                           //     .service(web::resource("/register").route(
+                                                           //         web::post().to(handlers::auth_handlers::Authentication::register),
+                                                           //     ))
+                                                           //     .service(
+                                                           //         // empty scope, still corresponds to /api/auth
+                                                           //         web::scope("")
+                                                           //             // auth middleware - check that any endpoint after this scope must be authenticated
+                                                           //             // when calling a service
+                                                           //             .wrap(middlewares::jwt_auth_middleware::AuthRequired {})
+                                                           //             // refresh token service - /api/auth/refresh
+                                                           //             .service(
+                                                           //                 web::resource("/refresh").route(
+                                                           //                     web::post().to(
+                                                           //                         handlers::auth_handlers::Authentication::refresh,
+                                                           //                     ),
+                                                           //                 ),
+                                                           //             )
+                                                           //             // logout service - /api/auth/logout
+                                                           //             .service(
+                                                           //                 web::resource("/logout").route(
+                                                           //                     web::post().to(
+                                                           //                         handlers::auth_handlers::Authentication::logout,
+                                                           //                     ),
+                                                           //                 ),
+                                                           //             ),
+                                                           //     ),
                     ), // services associated with /api scope
                        // .service(
 
